@@ -97,7 +97,8 @@ struct Layout {
 	vector<Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
-	void push(int layer, Rect rect, bool doSync=false);
+	void push(int layerID, Rect rect, bool doSync=false);
+	void push(int layerID, vector<Rect> rects, bool doSync=false);
 
 	void merge(bool doSync=false);
 	

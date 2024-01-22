@@ -260,6 +260,15 @@ void Layout::push(int layerID, Rect rect, bool doSync) {
 	layer->push(rect, doSync);
 }
 
+void Layout::push(int layerID, vector<Rect> rects, bool doSync) {
+	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
+	if (layer == layers.end() or layer->draw != layerID) {
+		layer = layers.insert(layer, Layer(layerID));
+	}
+
+	layer->push(rects, doSync);
+}
+
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());
