@@ -32,7 +32,7 @@ Rect::Rect(int net, vec2i ll, vec2i ur) {
 Rect::~Rect() {
 }
 
-Rect Rect::shift(vec2i pos, vec2i dir) {
+Rect Rect::shift(vec2i pos, vec2i dir) const {
 	return Rect(net, pos+ll*dir, pos+ur*dir);
 }
 

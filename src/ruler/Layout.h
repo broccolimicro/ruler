@@ -27,7 +27,7 @@ struct Rect {
 		return (i&1) ? ur[i>>1] : ll[i>>1];
 	}
 
-	Rect shift(vec2i pos, vec2i dir=vec2i(1,1));
+	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
 	bool merge(Rect r);
 	bool hasLabel() const;
 
