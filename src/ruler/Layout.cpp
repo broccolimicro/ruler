@@ -32,6 +32,40 @@ Rect::Rect(int net, vec2i ll, vec2i ur) {
 Rect::~Rect() {
 }
 
+bool Rect::merge(Rect r) {
+	if (net == r.net and ll[0] == r.ll[0] and ur[0] == r.ur[0] and ll[1] <= r.ur[1] and ur[1] >= r.ll[1]) {
+		if (r.ll[1] < ll[1]) {
+			ll[1] = r.ll[1];
+		}
+		if (r.ur[1] > ur[1]) {
+			ur[1] = r.ur[1];
+		}
+		return true;
+	} else if (net == r.net and ll[1] == r.ll[1] and ur[1] == r.ur[1] and ll[0] <= r.ur[0] and ur[0] >= r.ll[0]) {
+		if (r.ll[0] < ll[0]) {
+			ll[0] = r.ll[0];
+		}
+		if (r.ur[0] > ur[0]) {
+			ur[0] = r.ur[0];
+		}
+		return true;
+	} else if (net == r.net and ll[1] <= r.ll[1] and ur[1] >= r.ur[1] and ll[0] <= r.ll[0] and ur[0] >= r.ur[0]) {
+		return true;
+	} else if (net == r.net and ll[1] >= r.ll[1] and ur[1] <= r.ur[1] and ll[0] >= r.ll[0] and ur[0] <= r.ur[0]) {
+		ll[0] = r.ll[0];
+		ur[0] = r.ur[0];
+		ll[1] = r.ll[1];
+		ur[1] = r.ur[1];
+		return true;
+	}
+	return false;
+}
+
+bool Rect::hasLabel() const {
+	return net >= 0 and text >= 0;
+}
+
+
 
 bool operator<(const Bound &b0, const Bound &b1) {
 	return (b0.pos < b1.pos);
@@ -109,6 +143,23 @@ void Layer::erase(int idx, bool doSync) {
 				}
 			}
 		}
+	}
+}
+
+void Layer::merge(bool doSync) {
+	// TODO use the bounds array to improve performance
+	for (int i = (int)geo.size()-1; i >= 0; i--) {
+		for (int j = (int)geo.size()-1; j > i; j--) {
+			if (geo[i].merge(geo[j])) {
+				erase(j, doSync);
+			}
+		}
+	}
+}
+
+void Layout::merge(bool doSync) {
+	for (int i = 0; i < (int)layers.size(); i++) {
+		layers[i].merge(bool doSync);
 	}
 }
 

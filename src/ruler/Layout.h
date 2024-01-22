@@ -23,6 +23,8 @@ struct Rect {
 	int operator[](int i) {
 		return (i&1) ? ur[i>>1] : ll[i>>1];
 	}
+
+	bool merge(Rect r);
 };
 
 
@@ -40,15 +42,6 @@ struct Bound {
 
 bool operator<(const Bound &b0, const Bound &b1);
 bool operator<(const Bound &b, int p);
-
-struct Interval {
-	// DESIGN(edward.bingham) this interval is inclusive [from,to] because it
-	// represents geometry positions
-
-	// location in db units of left and right bound
-	int from;
-	int to;
-};
 
 struct Layer {
 	// this is the source of truth
@@ -73,13 +66,23 @@ struct Layer {
 	void push(Rect rect, bool doSync=false);
 	void push(vector<Rect> rects, bool doSync=false);
 	void erase(int index, bool doSync=false);
+
+	void merge(bool doSync=false);
 };
 
-struct Layers {
-	vector<Layer> layer;
+struct Layout {
+	Layout();
+	~Layout();
+
+	string name;
+	Rect box;
+	vector<string> nets;
+	vector<Layer> layers;
+
+	void merge(bool doSync=false);
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1);
-int minOffset(int *offset, const Tech &tech, int axis, Layers &l0, Layers &l1);
+int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
 
 }
