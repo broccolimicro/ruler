@@ -221,16 +221,21 @@ void Layout::updateBox(vec2i ll, vec2i ur) {
 }
 
 void Layout::merge(bool doSync) {
-	for (int i = 0; i < (int)layers.size(); i++) {
-		layers[i].merge(doSync);
+	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
+		layer->second.merge(doSync);
 	}
+}
+
+void Layout::push(int layerID, Rect rect, bool doSync) {
+	auto layer = layers.insert(pair<int, Layer>(layerID, Layer())).first;
+	layer->second.push(rect, doSync);
 }
 
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->emit(tech, *this, cell);
+		layer->second.emit(tech, *this, cell);
 	}
 
 	lib.cell_array.append(cell);

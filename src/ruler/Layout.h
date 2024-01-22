@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <vector>
 #include <gdstk/gdstk.hpp>
 
@@ -87,9 +88,10 @@ struct Layout {
 	string name;
 	Rect box;
 	vector<string> nets;
-	vector<Layer> layers;
+	map<int, Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
+	void push(int layer, Rect rect, bool doSync=false);
 
 	void merge(bool doSync=false);
 	
