@@ -32,6 +32,10 @@ Rect::Rect(int net, vec2i ll, vec2i ur) {
 Rect::~Rect() {
 }
 
+Rect Rect::shift(vec2i pos, vec2i dir) {
+	return Rect(net, pos+ll*dir, pos+ur*dir);
+}
+
 bool Rect::merge(Rect r) {
 	if (net == r.net and ll[0] == r.ll[0] and ur[0] == r.ur[0] and ll[1] <= r.ur[1] and ur[1] >= r.ll[1]) {
 		if (r.ll[1] < ll[1]) {
@@ -245,6 +249,14 @@ void Layout::updateBox(vec2i ll, vec2i ur) {
 	}
 }
 
+vector<Layer>::iterator Layout::findLayer(int layerID) {
+	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
+	if (layer == layers.end() or layer->draw != layerID) {
+		layer = layers.insert(layer, Layer(layerID));
+	}
+	return layer;
+}
+
 void Layout::merge(bool doSync) {
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
 		layer->merge(doSync);
@@ -252,21 +264,11 @@ void Layout::merge(bool doSync) {
 }
 
 void Layout::push(int layerID, Rect rect, bool doSync) {
-	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
-	if (layer == layers.end() or layer->draw != layerID) {
-		layer = layers.insert(layer, Layer(layerID));
-	}
-
-	layer->push(rect, doSync);
+	findLayer(layerID)->push(rect, doSync);
 }
 
 void Layout::push(int layerID, vector<Rect> rects, bool doSync) {
-	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
-	if (layer == layers.end() or layer->draw != layerID) {
-		layer = layers.insert(layer, Layer(layerID));
-	}
-
-	layer->push(rects, doSync);
+	findLayer(layerID)->push(rects, doSync);
 }
 
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {

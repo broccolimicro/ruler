@@ -27,6 +27,7 @@ struct Rect {
 		return (i&1) ? ur[i>>1] : ll[i>>1];
 	}
 
+	Rect shift(vec2i pos, vec2i dir=vec2i(1,1));
 	bool merge(Rect r);
 	bool hasLabel() const;
 
@@ -97,6 +98,7 @@ struct Layout {
 	vector<Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
+	vector<Layer>::iterator findLayer(int layerID);
 	void push(int layerID, Rect rect, bool doSync=false);
 	void push(int layerID, vector<Rect> rects, bool doSync=false);
 
