@@ -25,6 +25,7 @@ struct Rect {
 	}
 
 	bool merge(Rect r);
+	bool hasLabel() const;
 };
 
 

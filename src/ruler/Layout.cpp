@@ -1,4 +1,4 @@
-#include "Layers.h"
+#include "Layout.h"
 #include <algorithm>
 
 using namespace std;
@@ -62,7 +62,7 @@ bool Rect::merge(Rect r) {
 }
 
 bool Rect::hasLabel() const {
-	return net >= 0 and text >= 0;
+	return net >= 0;
 }
 
 
@@ -159,7 +159,7 @@ void Layer::merge(bool doSync) {
 
 void Layout::merge(bool doSync) {
 	for (int i = 0; i < (int)layers.size(); i++) {
-		layers[i].merge(bool doSync);
+		layers[i].merge(doSync);
 	}
 }
 
@@ -234,13 +234,13 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
 	return conflict;
 }
 
-int minOffset(int *offset, const Tech &tech, int axis, Layers &l0, Layers &l1) {
+int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
 	int result = -1;
-	for (int i = 0; i < (int)l0.layer.size();	i++) {
-		for (int j = 0; j < (int)l1.layer.size(); j++) {
+	for (int i = 0; i < (int)l0.size();	i++) {
+		for (int j = 0; j < (int)l1.size(); j++) {
 			int offset;
 			// TODO(edward.bingham) handle cross-layer spacing
-			if (l0.layer[i].id == l1.layer[j].id and minOffset(&offset, tech, axis, l0.layer[i], l1.layer[j])) {
+			if (l0[i].id == l1[j].id and minOffset(&offset, tech, axis, l0[i], l1[j])) {
 				if (result < 0 or offset < result) {
 					result = offset;
 				}
