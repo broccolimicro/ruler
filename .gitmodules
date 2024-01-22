@@ -1,0 +1,3 @@
+[submodule "deps/gdstk"]
+	path = deps/gdstk
+	url = git@github.com:heitzmann/gdstk.git
