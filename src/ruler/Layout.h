@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <vector>
 #include <gdstk/gdstk.hpp>
 
@@ -51,6 +50,10 @@ bool operator<(const Bound &b0, const Bound &b1);
 bool operator<(const Bound &b, int p);
 
 struct Layer {
+	Layer();
+	Layer(int draw, int label = -1, int pin = -1);
+	~Layer();
+
 	// this is the source of truth
 	// index into layer stack defined in Tech
 	int draw;
@@ -81,6 +84,9 @@ struct Layer {
 	void emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const;
 };
 
+bool operator<(const Layer &l0, const Layer &l1);
+bool operator<(const Layer &l, int id);
+
 struct Layout {
 	Layout();
 	~Layout();
@@ -88,7 +94,7 @@ struct Layout {
 	string name;
 	Rect box;
 	vector<string> nets;
-	map<int, Layer> layers;
+	vector<Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
 	void push(int layer, Rect rect, bool doSync=false);
@@ -98,7 +104,7 @@ struct Layout {
 	void emit(const Tech &tech, gdstk::Library &lib) const;
 };
 
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1);
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0);
 int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
 
 }

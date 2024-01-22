@@ -102,6 +102,23 @@ Bound::Bound(int pos, int idx) {
 Bound::~Bound() {
 }
 
+Layer::Layer() {
+	draw = -1;
+	label = -1;
+	pin = -1;
+	dirty = false;
+}
+
+Layer::Layer(int draw, int label, int pin) {
+	this->draw = draw;
+	this->label = label;
+	this->pin = pin;
+	this->dirty = false;
+}
+
+Layer::~Layer() {
+}
+
 void Layer::sync() {
 	for (int i = 0; i < 4; i++) {
 		bound[i].clear();
@@ -180,6 +197,14 @@ void Layer::emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) cons
 	}
 }
 
+bool operator<(const Layer &l0, const Layer &l1) {
+	return l0.draw < l1.draw;
+}
+
+bool operator<(const Layer &l0, int id) {
+	return l0.draw < id;
+}
+
 Layout::Layout() {
 }
 
@@ -222,20 +247,24 @@ void Layout::updateBox(vec2i ll, vec2i ur) {
 
 void Layout::merge(bool doSync) {
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->second.merge(doSync);
+		layer->merge(doSync);
 	}
 }
 
 void Layout::push(int layerID, Rect rect, bool doSync) {
-	auto layer = layers.insert(pair<int, Layer>(layerID, Layer())).first;
-	layer->second.push(rect, doSync);
+	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
+	if (layer == layers.end() or layer->draw != layerID) {
+		layer = layers.insert(layer, Layer(layerID));
+	}
+
+	layer->push(rect, doSync);
 }
 
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->second.emit(tech, *this, cell);
+		layer->emit(tech, *this, cell);
 	}
 
 	lib.cell_array.append(cell);
@@ -245,7 +274,7 @@ void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
 // will never intersect.
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing) {
 	if (l0.dirty) {
 		l0.sync();
 	}
@@ -255,9 +284,6 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
 
 	int result = 0;
 	bool conflict = false;
-
-	// TODO(edward.bingham) get spacing rule for l0.draw to l1.draw
-	int spacing = tech.mats[l0.draw].minSpacing;
 
 	vector<int> stack[2] = {vector<int>(), vector<int>()};
 	// four indices:
@@ -315,10 +341,12 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
 int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
 	int result = -1;
 	for (int i = 0; i < (int)l0.size();	i++) {
+		// TODO(edward.bingham) get spacing rule for l0.draw to l1.draw for cross-layer spacing
+		int spacing = tech.mats[l0[i].draw].minSpacing;
+
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int offset;
-			// TODO(edward.bingham) handle cross-layer spacing
-			if (l0[i].draw == l1[j].draw and minOffset(&offset, tech, axis, l0[i], l1[j])) {
+			if (l0[i].draw == l1[j].draw and minOffset(&offset, tech, axis, l0[i], l1[j], spacing)) {
 				if (result < 0 or offset < result) {
 					result = offset;
 				}
