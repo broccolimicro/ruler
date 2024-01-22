@@ -1,13 +1,16 @@
 #pragma once
 
-#include "vector.h"
 #include <vector>
+#include <gdstk/gdstk.hpp>
 
+#include "vector.h"
 #include "Tech.h"
 
 using namespace std;
 
 namespace ruler {
+
+struct Layout;
 
 struct Rect {
 	Rect();
@@ -26,8 +29,10 @@ struct Rect {
 
 	bool merge(Rect r);
 	bool hasLabel() const;
-};
 
+	gdstk::Polygon *emit(const Tech &tech, int layer) const;
+	gdstk::Label *emitLabel(const Tech &tech, const Layout &layout, int layer) const;
+};
 
 // is this bound compared along the x or y boundary?
 struct Bound {
@@ -47,7 +52,9 @@ bool operator<(const Bound &b, int p);
 struct Layer {
 	// this is the source of truth
 	// index into layer stack defined in Tech
-	int id;
+	int draw;
+	int label;
+	int pin;
 	vector<Rect> geo;
 	
 	// these are here for performance
@@ -69,6 +76,8 @@ struct Layer {
 	void erase(int index, bool doSync=false);
 
 	void merge(bool doSync=false);
+	
+	void emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const;
 };
 
 struct Layout {
@@ -79,8 +88,13 @@ struct Layout {
 	Rect box;
 	vector<string> nets;
 	vector<Layer> layers;
+	
+	void updateBox(vec2i ll, vec2i ur);
+	void updateBox(Rect r);
 
 	void merge(bool doSync=false);
+	
+	void emit(const Tech &tech, gdstk::Library &lib) const;
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1);

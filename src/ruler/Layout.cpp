@@ -65,7 +65,21 @@ bool Rect::hasLabel() const {
 	return net >= 0;
 }
 
+gdstk::Polygon *Rect::emit(const Tech &tech, int layer) const {
+	return new gdstk::Polygon(gdstk::rectangle(gdstk::Vec2{(double)ll[0], (double)ll[1]}, gdstk::Vec2{(double)ur[0], (double)ur[1]}, gdstk::make_tag(tech.mats[layer].major, tech.mats[layer].minor)));
+}
 
+gdstk::Label *Rect::emitLabel(const Tech &tech, const Layout &layout, int layer) const {
+	if (net < 0) {
+		return nullptr;
+	}
+	return new gdstk::Label{
+		.tag = gdstk::make_tag(tech.mats[layer].major, tech.mats[layer].minor),
+		.text = strdup(layout.nets[net].c_str()),
+		.origin = gdstk::Vec2{(double)((ll[0] + ur[0])/2), (double)((ll[1]+ur[1])/2)},
+		.magnification = 1,
+	};
+}
 
 bool operator<(const Bound &b0, const Bound &b1) {
 	return (b0.pos < b1.pos);
@@ -157,10 +171,69 @@ void Layer::merge(bool doSync) {
 	}
 }
 
+void Layer::emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const {
+	for (auto r = geo.begin(); r != geo.end(); r++) {
+		cell->polygon_array.append(r->emit(tech, draw));
+		if (r->hasLabel()) {
+			cell->label_array.append(r->emitLabel(tech, layout, label));
+		}
+	}
+}
+
+Layout::Layout() {
+}
+
+Layout::~Layout() {
+}
+
+void Layout::updateBox(vec2i ll, vec2i ur) {
+	if (ll[0] < box.ll[0]) {
+		box.ll[0] = ll[0];
+	}
+
+	if (ll[1] < box.ll[1]) {
+		box.ll[1] = ll[1];
+	}
+
+	if (ll[0] > box.ur[0]) {
+		box.ur[0] = ll[0];
+	}
+
+	if (ll[1] > box.ur[1]) {
+		box.ur[1] = ll[1];
+	}
+
+	if (ur[0] < box.ll[0]) {
+		box.ll[0] = ur[0];
+	}
+
+	if (ur[1] < box.ll[1]) {
+		box.ll[1] = ur[1];
+	}
+
+	if (ur[0] > box.ur[0]) {
+		box.ur[0] = ur[0];
+	}
+
+	if (ur[1] > box.ur[1]) {
+		box.ur[1] = ur[1];
+	}
+}
+
 void Layout::merge(bool doSync) {
 	for (int i = 0; i < (int)layers.size(); i++) {
 		layers[i].merge(doSync);
 	}
+}
+
+void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
+	gdstk::Cell *cell = new gdstk::Cell();
+	cell->init(name.c_str());
+	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
+		layer->emit(tech, *this, cell);
+	}
+
+	lib.cell_array.append(cell);
 }
 
 // Compute the offset from (0,0) of the l0 geometry to (0,0) of the l1 geometry
@@ -178,8 +251,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
 	int result = 0;
 	bool conflict = false;
 
-	// TODO(edward.bingham) get spacing rule for l0.id to l1.id
-	int spacing = tech.mats[l0.id].minSpacing;
+	// TODO(edward.bingham) get spacing rule for l0.draw to l1.draw
+	int spacing = tech.mats[l0.draw].minSpacing;
 
 	vector<int> stack[2] = {vector<int>(), vector<int>()};
 	// four indices:
@@ -240,7 +313,7 @@ int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int offset;
 			// TODO(edward.bingham) handle cross-layer spacing
-			if (l0[i].id == l1[j].id and minOffset(&offset, tech, axis, l0[i], l1[j])) {
+			if (l0[i].draw == l1[j].draw and minOffset(&offset, tech, axis, l0[i], l1[j])) {
 				if (result < 0 or offset < result) {
 					result = offset;
 				}
