@@ -81,9 +81,6 @@ struct Via {
 	int upHi;
 };
 
-struct Solution;
-struct Index;
-
 struct Tech {
 	Tech();
 	~Tech();
