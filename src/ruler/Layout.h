@@ -90,7 +90,6 @@ struct Layout {
 	vector<Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
-	void updateBox(Rect r);
 
 	void merge(bool doSync=false);
 	
