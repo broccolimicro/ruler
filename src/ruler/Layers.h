@@ -28,6 +28,10 @@ struct Rect {
 
 // is this bound compared along the x or y boundary?
 struct Bound {
+	Bound();
+	Bound(int pos, int idx);
+	~Bound();
+	
 	// index into Layer::geo
 	int idx;
 	
@@ -75,7 +79,7 @@ struct Layers {
 	vector<Layer> layer;
 };
 
-bool minOffset(int *offset, const Tech &tech, int axis, const Layer &l0, const Layer &l1);
-int minOffset(int *offset, const Tech &tech, int axis, const Layers &l0, const Layers &l1);
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1);
+int minOffset(int *offset, const Tech &tech, int axis, Layers &l0, Layers &l1);
 
 }

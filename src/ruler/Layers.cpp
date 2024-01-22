@@ -11,47 +11,23 @@ Rect::Rect() {
 	ur = vec2i(0,0);	
 }
 
-Rect::Rect(int draw, vec2i ll, vec2i ur) {
-	this->net = -1;
+Rect::Rect(int net, vec2i ll, vec2i ur) {
+	this->net = net;
 	this->ll = ll;
 	this->ur = ur;
 
-	if (this->top < this->bottom) {
-		int tmp = this->top;
-		this->top = this->bottom;
-		this->bottom = tmp;
+	if (this->ur[1] < this->ll[1]) {
+		int tmp = this->ur[1];
+		this->ur[1] = this->ll[1];
+		this->ll[1] = tmp;
 	}
 
-	if (this->right < this->left) {
-		int tmp = this->right;
-		this->right = this->left;
-		this->left = tmp;
-	}
-}
-
-Rect::Rect(const Routing &layer, int net, vec2i ll, vec2i ur) {
-	this->draw = layer.drawingLayer;
-	this->text = layer.labelLayer;
-	this->net = net;
-
-	this->left = ll[0];
-	this->bottom = ll[1];
-	this->right = ur[0];
-	this->top = ur[1];
-
-	if (this->top < this->bottom) {
-		int tmp = this->top;
-		this->top = this->bottom;
-		this->bottom = tmp;
-	}
-
-	if (this->right < this->left) {
-		int tmp = this->right;
-		this->right = this->left;
-		this->left = tmp;
+	if (this->ur[0] < this->ll[0]) {
+		int tmp = this->ur[0];
+		this->ur[0] = this->ll[0];
+		this->ll[0] = tmp;
 	}
 }
-
 
 Rect::~Rect() {
 }
@@ -63,6 +39,19 @@ bool operator<(const Bound &b0, const Bound &b1) {
 
 bool operator<(const Bound &b, int p) {
 	return (b.pos < p);
+}
+
+Bound::Bound() {
+	idx = -1;
+	pos = 0;
+}
+
+Bound::Bound(int pos, int idx) {
+	this->idx = idx;
+	this->pos = pos;
+}
+
+Bound::~Bound() {
 }
 
 void Layer::sync() {
@@ -90,6 +79,7 @@ void Layer::push(Rect rect, bool doSync) {
 }
 
 void Layer::push(vector<Rect> rects, bool doSync) {
+	int index = (int)geo.size();
 	geo.reserve(geo.size()+rects.size());
 	geo.insert(geo.end(), rects.begin(), rects.end());
 	dirty = dirty or not doSync;
@@ -97,8 +87,8 @@ void Layer::push(vector<Rect> rects, bool doSync) {
 		for (int i = 0; i < 4; i++) {
 			int sz = (int)bound[i].size();
 			bound[i].reserve(bound[i].size()+rects.size());
-			for (auto rect = rects.begin(); rect != rects.end(); rect++) {
-				bound[i].push_back(Bound((*rect)[i], index));
+			for (int j = 0; j < (int)rects.size(); j++) {
+				bound[i].push_back(Bound(rects[j][i], index+j));
 			}
 			sort(bound[i].begin() + sz, bound[i].end());
 			inplace_merge(bound[i].begin(), bound[i].begin()+sz, bound[i].end());
@@ -126,7 +116,7 @@ void Layer::erase(int idx, bool doSync) {
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
 // will never intersect.
-bool minOffset(int *offset, const Tech &tech, int axis, const Layer &l0, const Layer &l1) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1) {
 	if (l0.dirty) {
 		l0.sync();
 	}
@@ -147,17 +137,25 @@ bool minOffset(int *offset, const Tech &tech, int axis, const Layer &l0, const L
 	// l1 from for axis
 	// l1 to for axis
 	vector<int> idx(4, 0);
-	int minValue;
-	int minIdx;
-	while (i < (int)layer.from[axis].size() and j < (int)layer.from[axis].size()) {
+	while (true) {
+		int minValue = -1;
+		int minIdx = -1;
 		for (int i = 0; i < (int)idx.size(); i++) {
-			int value = ((i>>1) ?
-				l1.bound[(axis<<1)+(i&1)][idx[i]].pos :
-				l0.bound[(axis<<1)+(i&1)][idx[i]].pos) + 2*spacing*(i&1) - spacing;
-			if (i == 0 or value < minValue) {
-				minValue = value;
-				minIdx = i;
+			if (idx[i] < (int)((i>>1) ?
+				l1.bound[(axis<<1)+(i&1)].size() :
+				l0.bound[(axis<<1)+(i&1)].size())) {
+				int value = ((i>>1) ?
+					l1.bound[(axis<<1)+(i&1)][idx[i]].pos :
+					l0.bound[(axis<<1)+(i&1)][idx[i]].pos) + 2*spacing*(i&1) - spacing;
+				if (i == 0 or value < minValue) {
+					minValue = value;
+					minIdx = i;
+				}
 			}
+		}
+
+		if (minIdx < 0) {
+			break;
 		}
 
 		int layer = minIdx>>1;
@@ -165,7 +163,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, const Layer &l0, const L
 		int off = layer ?
 			l1.geo[l1.bound[(axis<<1)+isEnd][idx[minIdx]].idx][((1-axis)<<1)+0] :
 			l0.geo[l0.bound[(axis<<1)+isEnd][idx[minIdx]].idx][((1-axis)<<1)+1];
-		auto loc = lower_bound(off, stack[layer].begin(), stack[layer].end());
+		auto loc = lower_bound(stack[layer].begin(), stack[layer].end(), off);
 		if (isEnd) {
 			if (loc != stack[layer].end() and *loc == off) {
 				stack[layer].erase(loc);
@@ -185,7 +183,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, const Layer &l0, const L
 	return conflict;
 }
 
-int minOffset(int *offset, const Tech &tech, int axis, const Layers &l0, const Layers &l1) {
+int minOffset(int *offset, const Tech &tech, int axis, Layers &l0, Layers &l1) {
 	int result = -1;
 	for (int i = 0; i < (int)l0.layer.size();	i++) {
 		for (int j = 0; j < (int)l1.layer.size(); j++) {
