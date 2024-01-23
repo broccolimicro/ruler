@@ -336,10 +336,12 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			}
 		} else {
 			stack[layer].insert(loc, off);
-			int diff = abs(stack[1-layer].back() - off) + spacing;
-			if (not conflict or diff > result) {
-				result = diff;
-				conflict = true;
+			if (not stack[1-layer].empty()) {
+				int diff = abs(stack[1-layer].back() - off) + spacing;
+				if (not conflict or diff > result) {
+					result = diff;
+					conflict = true;
+				}
 			}
 		}
 		idx[minIdx]++;
