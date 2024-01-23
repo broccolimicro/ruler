@@ -389,7 +389,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vecto
 
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int layerResult = 0;
-			if (l0[i].draw == l1[j].draw and l0[i].draw != 0 and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
+			if (l0[i].draw == l1[j].draw and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
 				if (not conflict or layerResult < result) {
 					result = layerResult;
 					conflict = true;
