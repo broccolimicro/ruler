@@ -98,7 +98,7 @@ struct Layout {
 	vector<Layer> layers;
 	
 	void updateBox(vec2i ll, vec2i ur);
-	vector<Layer>::iterator findLayer(int layerID);
+	vector<Layer>::iterator findLayer(int draw, int layer=-1, int pin=-1);
 	void push(int layerID, Rect rect, bool doSync=false);
 	void push(int layerID, vector<Rect> rects, bool doSync=false);
 

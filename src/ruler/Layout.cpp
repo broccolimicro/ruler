@@ -249,10 +249,10 @@ void Layout::updateBox(vec2i ll, vec2i ur) {
 	}
 }
 
-vector<Layer>::iterator Layout::findLayer(int layerID) {
-	auto layer = lower_bound(layers.begin(), layers.end(), layerID);
-	if (layer == layers.end() or layer->draw != layerID) {
-		layer = layers.insert(layer, Layer(layerID));
+vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {
+	auto layer = lower_bound(layers.begin(), layers.end(), draw);
+	if (layer == layers.end() or layer->draw != draw) {
+		layer = layers.insert(layer, Layer(draw, label, pin));
 	}
 	return layer;
 }
@@ -264,11 +264,11 @@ void Layout::merge(bool doSync) {
 }
 
 void Layout::push(int layerID, Rect rect, bool doSync) {
-	findLayer(layerID)->push(rect, doSync);
+	findLayer(layerID, layerID)->push(rect, doSync);
 }
 
 void Layout::push(int layerID, vector<Rect> rects, bool doSync) {
-	findLayer(layerID)->push(rects, doSync);
+	findLayer(layerID, layerID)->push(rects, doSync);
 }
 
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
