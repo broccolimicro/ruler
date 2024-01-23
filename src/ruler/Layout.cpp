@@ -281,6 +281,26 @@ void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 	lib.cell_array.append(cell);
 }
 
+struct StackElem {
+	StackElem() {}
+	StackElem(int net, int pos) {
+		this->net = net;
+		this->pos = pos;
+	}
+	~StackElem() {}
+
+	int net;
+	int pos;
+};
+
+bool operator==(const StackElem &e0, const StackElem &e1) {
+	return e0.pos == e1.pos and e0.net == e1.net;
+}
+
+bool operator<(const StackElem &e0, const StackElem &e1) {
+	return e0.pos < e1.pos or (e0.pos == e1.pos and e0.net < e1.net);
+}
+
 // Compute the offset from (0,0) of the l0 geometry to (0,0) of the l1 geometry
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
@@ -296,7 +316,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 	int result = 0;
 	bool conflict = false;
 
-	vector<int> stack[2] = {vector<int>(), vector<int>()};
+	vector<StackElem> stack[2] = {vector<StackElem>(), vector<StackElem>()};
 	// four indices:
 	// l0 from for axis
 	// l0 to for axis
@@ -326,21 +346,25 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 
 		int layer = minIdx>>1;
 		int isEnd = minIdx&1;
-		int off = layer ?
-			l1.geo[l1.bound[(axis<<1)+isEnd][idx[minIdx]].idx][((1-axis)<<1)+0] :
-			l0.geo[l0.bound[(axis<<1)+isEnd][idx[minIdx]].idx][((1-axis)<<1)+1];
-		auto loc = lower_bound(stack[layer].begin(), stack[layer].end(), off);
+		Rect r = layer ?
+			l1.geo[l1.bound[(axis<<1)+isEnd][idx[minIdx]].idx] :
+			l0.geo[l0.bound[(axis<<1)+isEnd][idx[minIdx]].idx];
+		StackElem elem(r.net, r[((1-axis)<<1)+1-layer]);
+		auto loc = lower_bound(stack[layer].begin(), stack[layer].end(), elem);
 		if (isEnd) {
-			if (loc != stack[layer].end() and *loc == off) {
+			if (loc != stack[layer].end() and *loc == elem) {
 				stack[layer].erase(loc);
 			}
 		} else {
-			stack[layer].insert(loc, off);
-			if (not stack[1-layer].empty()) {
-				int diff = abs(stack[1-layer].back() - off) + spacing;
-				if (not conflict or diff > result) {
-					result = diff;
-					conflict = true;
+			stack[layer].insert(loc, elem);
+			for (int i = (int)stack[1-layer].size()-1; i >= 0; i--) {
+				if (stack[1-layer][i].net != elem.net) {
+					int diff = abs(stack[1-layer][i].pos - elem.pos) + spacing;
+					if (not conflict or diff > result) {
+						result = diff;
+						conflict = true;
+					}
+					break;
 				}
 			}
 		}
