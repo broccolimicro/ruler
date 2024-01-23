@@ -108,6 +108,6 @@ struct Layout {
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0);
-int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
 
 }

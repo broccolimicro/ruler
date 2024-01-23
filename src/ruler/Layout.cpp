@@ -345,26 +345,33 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 		idx[minIdx]++;
 	}
 
-	*offset = result;
+	if (conflict) {
+		*offset = result;
+	}
 	return conflict;
 }
 
-int minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
-	int result = -1;
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
+	bool conflict = false;
+	int result = 0;
 	for (int i = 0; i < (int)l0.size();	i++) {
 		// TODO(edward.bingham) get spacing rule for l0.draw to l1.draw for cross-layer spacing
 		int spacing = tech.mats[l0[i].draw].minSpacing;
 
 		for (int j = 0; j < (int)l1.size(); j++) {
-			int offset;
-			if (l0[i].draw == l1[j].draw and minOffset(&offset, tech, axis, l0[i], l1[j], spacing)) {
-				if (result < 0 or offset < result) {
-					result = offset;
+			int layerResult = 0;
+			if (l0[i].draw == l1[j].draw and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
+				if (not conflict or layerResult < result) {
+					result = layerResult;
+					conflict = true;
 				}
 			}
 		}
 	}
-	return result;
+	if (conflict) {
+		*offset = result;
+	}
+	return conflict;
 }
 
 }
