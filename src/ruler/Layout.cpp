@@ -362,7 +362,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			stack[layer].insert(loc, elem);
 			for (int i = (int)stack[1-layer].size()-1; i >= 0; i--) {
 				if (stack[1-layer][i].net != elem.net) {
-					int diff = (layer ? 1 : -1)*(elem.pos - stack[1-layer][i].pos) + spacing;
+					int diff = (layer ? -1 : 1)*(elem.pos - stack[1-layer][i].pos) + spacing;
 					if (not conflict or diff > result) {
 						result = diff;
 						conflict = true;
