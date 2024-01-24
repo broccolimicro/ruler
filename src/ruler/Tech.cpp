@@ -6,7 +6,6 @@ Material::Material() {
 	this->name = "";
 	this->major = 0;
 	this->minor = 0;
-	this->minSpacing = 0;
 	this->minWidth = 0;
 }
 
@@ -14,7 +13,6 @@ Material::Material(string name, int major, int minor) {
 	this->name = name;
 	this->major = major;
 	this->minor = minor;
-	this->minSpacing = 0;
 	this->minWidth = 0;
 }
 
@@ -39,14 +37,12 @@ Diffusion::~Diffusion() {
 Model::Model() {
 	name = "";
 	type = NMOS;
-	viaPolySpacing = 0;
 	polyOverhang = 0;
 }
 
-Model::Model(int type, string name, int viaPolySpacing, int polyOverhang) {
+Model::Model(int type, string name, int polyOverhang) {
 	this->name = name;
 	this->type = type;
-	this->viaPolySpacing = viaPolySpacing;
 	this->polyOverhang = polyOverhang;
 }
 
@@ -60,9 +56,9 @@ Routing::Routing() {
 }
 
 Routing::Routing(int drawing, int pin, int label) {
-	drawing = drawing;
-	pin = pin;
-	label = label;
+	this->drawing = drawing;
+	this->pin = pin;
+	this->label = label;
 }
 
 Routing::~Routing() {
@@ -98,7 +94,6 @@ Tech::Tech() {
 	// this should be parsed in from python
 	mats.push_back(Material("diff.drawing", 65, 20));
 	mats.back().minWidth = 30;
-	mats.back().minSpacing = 54;
 	mats.push_back(Material("tap.drawing", 65, 44));
 	mats.push_back(Material("nwell.drawing", 64, 20));
 	mats.push_back(Material("dnwell.drawing", 64, 18));
@@ -107,14 +102,12 @@ Tech::Tech() {
 	mats.push_back(Material("hvtr.drawing", 18, 20));
 	mats.push_back(Material("hvtp.drawing", 78, 44));
 	mats.back().minWidth = 76;
-	mats.back().minSpacing = 76;
 	mats.push_back(Material("ldntm.drawing", 11, 44));
 	mats.push_back(Material("hvi.drawing", 75, 20));
 	mats.push_back(Material("tunm.drawing", 80, 20));
 	mats.push_back(Material("lvtn.drawing", 125, 44));
 	mats.push_back(Material("poly.drawing", 66, 20));
 	mats.back().minWidth = 30;
-	mats.back().minSpacing = 42;
 	mats.push_back(Material("hvntm.drawing", 125, 20));
 	mats.push_back(Material("nsdm.drawing", 93, 44));
 	mats.push_back(Material("psdm.drawing", 94, 20));
@@ -123,40 +116,28 @@ Tech::Tech() {
 	mats.push_back(Material("npc.drawing", 95, 20));
 	mats.push_back(Material("licon1.drawing", 66, 44));
 	mats.back().minWidth = 34;
-	mats.back().minSpacing = 34;
 	mats.push_back(Material("li1.drawing", 67, 20));
 	mats.back().minWidth = 34;
-	mats.back().minSpacing = 34;
 	mats.push_back(Material("mcon.drawing", 67, 44));
 	mats.back().minWidth = 34;
-	mats.back().minSpacing = 38;
 	mats.push_back(Material("met1.drawing", 68, 20));
 	mats.back().minWidth = 28;
-	mats.back().minSpacing = 28;
 	mats.push_back(Material("via.drawing", 68, 44));
 	mats.back().minWidth = 30;
-	mats.back().minSpacing = 34;
 	mats.push_back(Material("met2.drawing", 69, 20));
 	mats.back().minWidth = 28;
-	mats.back().minSpacing = 28;
 	mats.push_back(Material("via2.drawing", 69, 44));
 	mats.back().minWidth = 40;
-	mats.back().minSpacing = 40;
 	mats.push_back(Material("met3.drawing", 70, 20));
 	mats.back().minWidth = 60;
-	mats.back().minSpacing = 60;
 	mats.push_back(Material("via3.drawing", 70, 44));
 	mats.back().minWidth = 40;
-	mats.back().minSpacing = 40;
 	mats.push_back(Material("met4.drawing", 71, 20));
 	mats.back().minWidth = 60;
-	mats.back().minSpacing = 60;
 	mats.push_back(Material("via4.drawing", 71, 44));
 	mats.back().minWidth = 160;
-	mats.back().minSpacing = 160;
 	mats.push_back(Material("met5.drawing", 72, 20));
 	mats.back().minWidth = 320;
-	mats.back().minSpacing = 320;
 	mats.push_back(Material("pad.drawing", 76, 20));
 	mats.push_back(Material("nsm.drawing", 61, 20));
 	mats.push_back(Material("capm.drawing", 89, 44));
@@ -370,14 +351,14 @@ Tech::Tech() {
 	mats.push_back(Material("cfom.waffleDrop", 22, 24));
 	mats.push_back(Material("cmm5.waffleDrop", 117, 4));
 
-	models.push_back(Model(Model::NMOS, "sky130_fd_pr__nfet_01v8", 18, 26));
+	models.push_back(Model(Model::NMOS, "sky130_fd_pr__nfet_01v8", 26));
 	models.back().mats.push_back(Diffusion(findMat("diff.drawing"), 50, 0));
 	models.back().mats.push_back(Diffusion(findMat("nsdm.drawing"), 25, 25));
-	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8", 18, 26));
+	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8", 26));
 	models.back().mats.push_back(Diffusion(findMat("diff.drawing"), 50, 0));
 	models.back().mats.push_back(Diffusion(findMat("psdm.drawing"), 25, 25));
 	models.back().mats.push_back(Diffusion(findMat("nwell.drawing"), 36, 36));
-	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8_hvt", 18, 26));
+	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8_hvt", 26));
 	models.back().mats.push_back(Diffusion(findMat("diff.drawing"), 50, 0));
 	models.back().mats.push_back(Diffusion(findMat("psdm.drawing"), 25, 25));
 	models.back().mats.push_back(Diffusion(findMat("hvtp.drawing"), 11, 11));
@@ -403,10 +384,42 @@ Tech::Tech() {
 	wires.push_back(Routing(findMat("met4.drawing"), findMat("met4.pin"), findMat("met4.label")));
 	wires.push_back(Routing(findMat("met5.drawing"), findMat("met5.pin"), findMat("met5.label")));
 
+	setSpacing(findMat("diff.drawing"), findMat("diff.drawing"), 54);
+	setSpacing(findMat("hvtp.drawing"), findMat("hvtp.drawing"), 76);
+	setSpacing(findMat("poly.drawing"), findMat("poly.drawing"), 42);
+	setSpacing(findMat("licon1.drawing"), findMat("licon1.drawing"), 34);
+	setSpacing(findMat("li1.drawing"), findMat("li1.drawing"), 34);
+	setSpacing(findMat("mcon.drawing"), findMat("mcon.drawing"), 38);
+	setSpacing(findMat("met1.drawing"), findMat("met1.drawing"), 28);
+	setSpacing(findMat("via.drawing"), findMat("via.drawing"), 34);
+	setSpacing(findMat("met2.drawing"), findMat("met2.drawing"), 28);
+	setSpacing(findMat("via2.drawing"), findMat("via2.drawing"), 40);
+	setSpacing(findMat("met3.drawing"), findMat("met3.drawing"), 60);
+	setSpacing(findMat("via3.drawing"), findMat("via3.drawing"), 40);
+	setSpacing(findMat("met4.drawing"), findMat("met4.drawing"), 60);
+	setSpacing(findMat("via4.drawing"), findMat("via4.drawing"), 160);
+	setSpacing(findMat("met5.drawing"), findMat("met5.drawing"), 320);
+	setSpacing(findMat("poly.drawing"), findMat("licon1.drawing"), 18);
+
 	boundary = findMat("areaid.sc.identifier");
 }
 
 Tech::~Tech() {
+}
+
+void Tech::setSpacing(int l0, int l1, int value) {
+	auto result = spacing.insert(pair<pair<int, int>, int>(pair<int, int>(min(l0,l1), max(l0,l1)), value));
+	if (not result.second) {
+		result.first->second = value;
+	}
+}
+
+int Tech::findSpacing(int l0, int l1) const {
+	auto i = spacing.find(pair<int, int>(min(l0,l1), max(l0,l1)));
+	if (i != spacing.end()) {
+		return i->second;
+	}
+	return -1;
 }
 
 int Tech::findMat(string name) const {

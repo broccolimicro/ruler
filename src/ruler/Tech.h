@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 using namespace std;
 
@@ -16,7 +17,6 @@ struct Material {
 	int major;
 	int minor;
 
-	int minSpacing;
 	int minWidth;
 };
 
@@ -34,7 +34,7 @@ struct Diffusion {
 
 struct Model {
 	Model();
-	Model(int type, string name, int viaPolySpacing, int polyOverhang);
+	Model(int type, string name, int polyOverhang);
 	~Model();
 
 	enum {
@@ -47,7 +47,6 @@ struct Model {
 
 	// Start top down
 	vector<Diffusion> mats;
-	int viaPolySpacing;
 	int polyOverhang;
 };
 
@@ -92,7 +91,10 @@ struct Tech {
 	vector<Model> models;
 	vector<Via> vias;
 	vector<Routing> wires;
-	
+	map<pair<int, int>, int> spacing;
+
+	void setSpacing(int l0, int l1, int value);	
+	int findSpacing(int l0, int l1) const;
 	int findMat(string name) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;

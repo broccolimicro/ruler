@@ -264,7 +264,9 @@ void Layout::merge(bool doSync) {
 }
 
 void Layout::push(int layerID, Rect rect, bool doSync) {
-	findLayer(layerID, layerID)->push(rect, doSync);
+	auto layer = findLayer(layerID, layerID);
+	printf("push %d->%d\n", layerID, layer->draw);
+	layer->push(rect, doSync);
 }
 
 void Layout::push(int layerID, vector<Rect> rects, bool doSync) {
@@ -361,8 +363,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 		} else {
 			stack[layer].insert(loc, elem);
 			for (int i = (int)stack[1-layer].size()-1; i >= 0; i--) {
-				if (stack[1-layer][i].net != elem.net) {
-					int diff = (layer ? -1 : 1)*(elem.pos - stack[1-layer][i].pos) + spacing;
+				if (l0.draw != l1.draw or stack[1-layer][i].net != elem.net) {
+					int diff = (layer ? 1 : -1)*(elem.pos - stack[1-layer][i].pos) + spacing;
 					if (not conflict or diff > result) {
 						result = diff;
 						conflict = true;
@@ -384,13 +386,12 @@ bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vecto
 	bool conflict = false;
 	int result = 0;
 	for (int i = 0; i < (int)l0.size();	i++) {
-		// TODO(edward.bingham) get spacing rule for l0.draw to l1.draw for cross-layer spacing
-		int spacing = tech.mats[l0[i].draw].minSpacing;
-
 		for (int j = 0; j < (int)l1.size(); j++) {
+			int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
+			printf("%d->%d: %d\n", l0[i].draw, l1[i].draw, spacing);
 			int layerResult = 0;
-			if (l0[i].draw == l1[j].draw and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
-				if (not conflict or layerResult < result) {
+			if (spacing >= 0 and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
+				if (not conflict or layerResult > result) {
 					result = layerResult;
 					conflict = true;
 				}
