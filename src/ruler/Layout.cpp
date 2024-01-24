@@ -111,6 +111,11 @@ Layer::Layer() {
 	label = -1;
 	pin = -1;
 	dirty = false;
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			bound[i][j] = vector<Bound>();
+		}
+	}
 }
 
 Layer::Layer(int draw, int label, int pin) {
@@ -118,19 +123,28 @@ Layer::Layer(int draw, int label, int pin) {
 	this->label = label;
 	this->pin = pin;
 	this->dirty = false;
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			bound[i][j] = vector<Bound>();
+		}
+	}
 }
 
 Layer::~Layer() {
 }
 
 void Layer::sync() {
-	for (int i = 0; i < 4; i++) {
-		bound[i].clear();
-		bound[i].reserve(geo.size());
-		for (int j = 0; j < (int)geo.size(); j++) {
-			bound[i].push_back(Bound(geo[j][i], j));
+	for (int axis = 0; axis < 2; axis++) {
+		for (int fromTo = 0; fromTo < 2; fromTo++) {
+			vector<Bound> &bounds = bound[axis][fromTo];
+
+			bounds.clear();
+			bounds.reserve(geo.size());
+			for (int j = 0; j < (int)geo.size(); j++) {
+				bounds.push_back(Bound(geo[j][fromTo][axis], j));
+			}
+			sort(bounds.begin(), bounds.end());
 		}
-		sort(bound[i].begin(), bound[i].end());
 	}
 	dirty = false;
 }
@@ -140,9 +154,13 @@ void Layer::push(Rect rect, bool doSync) {
 	geo.push_back(rect);
 	dirty = dirty or not doSync;
 	if (not dirty) {
-		for (int i = 0; i < 4; i++) {
-			auto loc = lower_bound(bound[i].begin(), bound[i].end(), rect[i]); 
-			bound[i].insert(loc, Bound(rect[i], index));
+		for (int axis = 0; axis < 2; axis++) {
+			for (int fromTo = 0; fromTo < 2; fromTo++) {
+				vector<Bound> &bounds = bound[axis][fromTo];
+
+				auto loc = lower_bound(bounds.begin(), bounds.end(), rect[fromTo][axis]); 
+				bounds.insert(loc, Bound(rect[fromTo][axis], index));
+			}
 		}
 	}
 }
@@ -153,14 +171,18 @@ void Layer::push(vector<Rect> rects, bool doSync) {
 	geo.insert(geo.end(), rects.begin(), rects.end());
 	dirty = dirty or not doSync;
 	if (not dirty) {
-		for (int i = 0; i < 4; i++) {
-			int sz = (int)bound[i].size();
-			bound[i].reserve(bound[i].size()+rects.size());
-			for (int j = 0; j < (int)rects.size(); j++) {
-				bound[i].push_back(Bound(rects[j][i], index+j));
+		for (int axis = 0; axis < 2; axis++) {
+			for (int fromTo = 0; fromTo < 2; fromTo++) {
+				vector<Bound> &bounds = bound[axis][fromTo];
+
+				int sz = (int)bounds.size();
+				bounds.reserve(bounds.size()+rects.size());
+				for (int j = 0; j < (int)rects.size(); j++) {
+					bounds.push_back(Bound(rects[j][fromTo][axis], index+j));
+				}
+				sort(bounds.begin() + sz, bounds.end());
+				inplace_merge(bounds.begin(), bounds.begin()+sz, bounds.end());
 			}
-			sort(bound[i].begin() + sz, bound[i].end());
-			inplace_merge(bound[i].begin(), bound[i].begin()+sz, bound[i].end());
 		}
 	}
 }
@@ -169,12 +191,16 @@ void Layer::erase(int idx, bool doSync) {
 	geo.erase(geo.begin()+idx);
 	dirty = dirty or not doSync;
 	if (not dirty) {
-		for (int i = 0; i < 4; i++) {
-			for (int j = (int)bound[i].size()-1; j >= 0; j--) {
-				if (bound[i][j].idx == idx) {
-					bound[i].erase(bound[i].begin() + j);
-				} else if (bound[i][j].idx > idx) {
-					bound[i][j].idx--;
+		for (int axis = 0; axis < 2; axis++) {
+			for (int fromTo = 0; fromTo < 2; fromTo++) {
+				vector<Bound> &bounds = bound[axis][fromTo];
+
+				for (int j = (int)bounds.size()-1; j >= 0; j--) {
+					if (bounds[j].idx == idx) {
+						bounds.erase(bounds.begin() + j);
+					} else if (bounds[j].idx > idx) {
+						bounds[j].idx--;
+					}
 				}
 			}
 		}
@@ -265,7 +291,6 @@ void Layout::merge(bool doSync) {
 
 void Layout::push(int layerID, Rect rect, bool doSync) {
 	auto layer = findLayer(layerID, layerID);
-	printf("push %d->%d\n", layerID, layer->draw);
 	layer->push(rect, doSync);
 }
 
@@ -321,59 +346,88 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 	int result = 0;
 	bool conflict = false;
 
+	// indexed as [layer]
 	vector<StackElem> stack[2] = {vector<StackElem>(), vector<StackElem>()};
-	// four indices:
-	// 00: l0 from for axis
-	// 01: l0 to for axis
-	// 10: l1 from for axis
-	// 11: l1 to for axis
-	vector<int> idx(4, 0);
+	// indexed as [layer][fromTo]
+	int idx[2][2] = {{0, 0}, {0, 0}};
 	while (true) {
+		// We're simultaneously iterating over four arrays in sorted order. So we
+		// need to find the index that points to the minimal element in the sort
+		// order and then increment it.
 		int minValue = -1;
-		int minIdx = -1;
-		for (int i = 0; i < (int)idx.size(); i++) {
-			if (idx[i] < (int)((i>>1) ?
-				l1.bound[(axis<<1)+(i&1)].size() :
-				l0.bound[(axis<<1)+(i&1)].size())) {
-				int value = ((i>>1) ?
-					l1.bound[(axis<<1)+(i&1)][idx[i]].pos :
-					l0.bound[(axis<<1)+(i&1)][idx[i]].pos) + 2*spacing*(i&1) - spacing;
-				if (i == 0 or value < minValue) {
-					minValue = value;
-					minIdx = i;
+		int minLayer = -1;
+		int minFromTo = -1;
+		for (int layer = 0; layer < 2; layer++) {
+			for (int fromTo = 0; fromTo < 2; fromTo++) {
+				int boundIdx = idx[layer][fromTo];
+				const vector<Bound> &bounds = layer ? l1.bound[1-axis][fromTo] : l0.bound[1-axis][fromTo];
+
+				if (boundIdx < (int)bounds.size()) {
+					int value = bounds[boundIdx].pos + 2*spacing*fromTo - spacing;
+					if (minLayer < 0 or value < minValue) {
+						minValue = value;
+						minLayer = layer;
+						minFromTo = fromTo;
+					}
 				}
 			}
 		}
 
-		if (minIdx < 0) {
+		if (minLayer < 0) {
 			break;
 		}
 
-		int layer = minIdx>>1;
-		int isEnd = minIdx&1;
-		Rect r = layer ?
-			l1.geo[l1.bound[(axis<<1)+isEnd][idx[minIdx]].idx] :
-			l0.geo[l0.bound[(axis<<1)+isEnd][idx[minIdx]].idx];
-		StackElem elem(r.net, r[((1-axis)<<1)+1-layer]);
-		auto loc = lower_bound(stack[layer].begin(), stack[layer].end(), elem);
-		if (isEnd) {
-			if (loc != stack[layer].end() and *loc == elem) {
-				stack[layer].erase(loc);
+		int boundIdx = idx[minLayer][minFromTo];
+		const Bound &bound = minLayer ? l1.bound[1-axis][minFromTo][boundIdx] : l0.bound[1-axis][minFromTo][boundIdx];
+		Rect rect = minLayer ? l1.geo[bound.idx] : l0.geo[bound.idx];
+
+		// Since we're measuring distance from layer 0 to layer 1, then we need to
+		// look at layer 0's to boundary and layer 1's from boundary. From is index
+		// 0 and to is index 1, so we need 1-layer.
+		StackElem elem(rect.net, rect[1-minLayer][axis]);
+
+		auto loc = lower_bound(stack[minLayer].begin(), stack[minLayer].end(), elem);
+		if (minFromTo) {
+			// When the index found is the end of a rectangle, we remove that bound
+			// from the stack.
+			if (loc != stack[minLayer].end() and *loc == elem) {
+				stack[minLayer].erase(loc);
 			}
 		} else {
-			stack[layer].insert(loc, elem);
-			for (int i = (int)stack[1-layer].size()-1; i >= 0; i--) {
-				if (l0.draw != l1.draw or stack[1-layer][i].net != elem.net) {
-					int diff = (layer ? 1 : -1)*(elem.pos - stack[1-layer][i].pos) + spacing;
-					if (not conflict or diff > result) {
-						result = diff;
-						conflict = true;
+			// When the index found is the start of a rectangle, then we add that
+			// rectangle to the associated stack.
+			stack[minLayer].insert(loc, elem);
+			// Then we need to check the distances to the opposite layer along the
+			// opposite axis. We need to compute the distances from left to right or
+			// top to bottom
+			if (minLayer == 0) {
+				// from layer 0 to layer 1
+				for (int i = 0; i < (int)stack[1].size(); i++) {
+					if (l0.draw != l1.draw or stack[1][i].net != elem.net) {
+						int diff = elem.pos + spacing - stack[1][i].pos;
+						if (not conflict or diff > result) {
+							result = diff;
+							conflict = true;
+						}
+						break;
 					}
-					break;
+				}
+			} else if (minLayer == 1) {
+				// from layer 1 to layer 0
+				for (int i = (int)stack[0].size()-1; i >= 0; i--) {
+					if (l0.draw != l1.draw or stack[0][i].net != elem.net) {
+						int diff = stack[0][i].pos + spacing - elem.pos;
+						if (not conflict or diff > result) {
+							result = diff;
+							conflict = true;
+						}
+						break;
+					}
 				}
 			}
 		}
-		idx[minIdx]++;
+
+		idx[minLayer][minFromTo]++;
 	}
 
 	if (conflict) {

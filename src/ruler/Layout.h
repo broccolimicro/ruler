@@ -23,8 +23,8 @@ struct Rect {
 	vec2i ll;
 	vec2i ur;
 
-	int operator[](int i) {
-		return (i&1) ? ur[i>>1] : ll[i>>1];
+	vec2i &operator[](int corner) {
+		return corner ? ur : ll;
 	}
 
 	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
@@ -65,14 +65,8 @@ struct Layer {
 	// these are here for performance
 	bool dirty;
 	
-	enum {
-		FROM_H = 0,
-		TO_H = 1,
-		FROM_V = 2,
-		TO_V = 3
-	};
-
-	vector<Bound> bound[4];
+	// indexed as [axis][fromTo]
+	vector<Bound> bound[2][2];
 
 	void sync();
 
