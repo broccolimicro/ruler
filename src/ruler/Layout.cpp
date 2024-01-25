@@ -362,7 +362,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 				const vector<Bound> &bounds = layer ? l1.bound[1-axis][fromTo] : l0.bound[1-axis][fromTo];
 
 				if (boundIdx < (int)bounds.size()) {
-					int value = bounds[boundIdx].pos + (2*(1-fromTo) - 1)*spacing/2;
+					int value = bounds[boundIdx].pos + (2*(fromTo) - 1)*spacing/2;
 					if (minLayer < 0 or value < minValue) {
 						minValue = value;
 						minLayer = layer;

@@ -400,6 +400,8 @@ Tech::Tech() {
 	setSpacing(findMat("via4.drawing"), findMat("via4.drawing"), 160);
 	setSpacing(findMat("met5.drawing"), findMat("met5.drawing"), 320);
 	setSpacing(findMat("poly.drawing"), findMat("licon1.drawing"), 18);
+	//setSpacing(findMat("poly.drawing"), findMat("diff.drawing"), 38);
+	//setSpacing(findMat("licon1.drawing"), findMat("diff.drawing"), 38);
 
 	boundary = findMat("areaid.sc.identifier");
 }
