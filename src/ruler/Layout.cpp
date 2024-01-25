@@ -335,7 +335,7 @@ bool operator<(const StackElem &e0, const StackElem &e1) {
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
 // will never intersect.
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing, bool mergeNet) {
 	if (l0.dirty) {
 		l0.sync();
 	}
@@ -362,7 +362,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 				const vector<Bound> &bounds = layer ? l1.bound[1-axis][fromTo] : l0.bound[1-axis][fromTo];
 
 				if (boundIdx < (int)bounds.size()) {
-					int value = bounds[boundIdx].pos + (2*fromTo - 1)*spacing/2;
+					int value = bounds[boundIdx].pos + (2*(1-fromTo) - 1)*spacing/2;
 					if (minLayer < 0 or value < minValue) {
 						minValue = value;
 						minLayer = layer;
@@ -402,7 +402,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			if (minLayer == 0) {
 				// from layer 0 to layer 1
 				for (int i = 0; i < (int)stack[1].size(); i++) {
-					if (l0.draw != l1.draw or stack[1][i].net != elem.net) {
+					if (l0.draw != l1.draw or stack[1][i].net != elem.net or not mergeNet) {
 						int diff = elem.pos + spacing - stack[1][i].pos;
 						if (diff > *offset) {
 							*offset = diff;
@@ -414,7 +414,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			} else if (minLayer == 1) {
 				// from layer 1 to layer 0
 				for (int i = (int)stack[0].size()-1; i >= 0; i--) {
-					if (l0.draw != l1.draw or stack[0][i].net != elem.net) {
+					if (l0.draw != l1.draw or stack[0][i].net != elem.net or not mergeNet) {
 						int diff = stack[0][i].pos + spacing - elem.pos;
 						if (diff > *offset) {
 							*offset = diff;
@@ -432,13 +432,13 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 	return conflict;
 }
 
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1, bool mergeNet) {
 	bool conflict = false;
 	for (int i = 0; i < (int)l0.size();	i++) {
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
 			if (spacing >= 0) {
-				bool newConflict = minOffset(offset, tech, axis, l0[i], l1[j], spacing);
+				bool newConflict = minOffset(offset, tech, axis, l0[i], l1[j], spacing, mergeNet);
 				conflict = conflict or newConflict;
 			}
 		}

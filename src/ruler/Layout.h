@@ -101,7 +101,7 @@ struct Layout {
 	void emit(const Tech &tech, gdstk::Library &lib) const;
 };
 
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0);
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0, bool mergeNet=true);
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1, bool mergeNet=true);
 
 }
