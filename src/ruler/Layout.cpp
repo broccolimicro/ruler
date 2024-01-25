@@ -343,7 +343,6 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 		l1.sync();
 	}
 
-	int result = 0;
 	bool conflict = false;
 
 	// indexed as [layer]
@@ -363,7 +362,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 				const vector<Bound> &bounds = layer ? l1.bound[1-axis][fromTo] : l0.bound[1-axis][fromTo];
 
 				if (boundIdx < (int)bounds.size()) {
-					int value = bounds[boundIdx].pos + 2*spacing*fromTo - spacing;
+					int value = bounds[boundIdx].pos + (2*fromTo - 1)*spacing/2;
 					if (minLayer < 0 or value < minValue) {
 						minValue = value;
 						minLayer = layer;
@@ -399,14 +398,14 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			stack[minLayer].insert(loc, elem);
 			// Then we need to check the distances to the opposite layer along the
 			// opposite axis. We need to compute the distances from left to right or
-			// top to bottom
+			// bottom to top
 			if (minLayer == 0) {
 				// from layer 0 to layer 1
 				for (int i = 0; i < (int)stack[1].size(); i++) {
 					if (l0.draw != l1.draw or stack[1][i].net != elem.net) {
 						int diff = elem.pos + spacing - stack[1][i].pos;
-						if (not conflict or diff > result) {
-							result = diff;
+						if (diff > *offset) {
+							*offset = diff;
 							conflict = true;
 						}
 						break;
@@ -417,8 +416,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 				for (int i = (int)stack[0].size()-1; i >= 0; i--) {
 					if (l0.draw != l1.draw or stack[0][i].net != elem.net) {
 						int diff = stack[0][i].pos + spacing - elem.pos;
-						if (not conflict or diff > result) {
-							result = diff;
+						if (diff > *offset) {
+							*offset = diff;
 							conflict = true;
 						}
 						break;
@@ -430,30 +429,18 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 		idx[minLayer][minFromTo]++;
 	}
 
-	if (conflict) {
-		*offset = result;
-	}
 	return conflict;
 }
 
 bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1) {
 	bool conflict = false;
-	int result = 0;
 	for (int i = 0; i < (int)l0.size();	i++) {
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
-			printf("%d->%d: %d\n", l0[i].draw, l1[i].draw, spacing);
-			int layerResult = 0;
-			if (spacing >= 0 and minOffset(&layerResult, tech, axis, l0[i], l1[j], spacing)) {
-				if (not conflict or layerResult > result) {
-					result = layerResult;
-					conflict = true;
-				}
+			if (spacing >= 0) {
+				conflict = conflict or minOffset(offset, tech, axis, l0[i], l1[j], spacing);
 			}
 		}
-	}
-	if (conflict) {
-		*offset = result;
 	}
 	return conflict;
 }
