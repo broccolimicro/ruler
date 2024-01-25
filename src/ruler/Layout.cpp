@@ -438,7 +438,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vecto
 		for (int j = 0; j < (int)l1.size(); j++) {
 			int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
 			if (spacing >= 0) {
-				conflict = conflict or minOffset(offset, tech, axis, l0[i], l1[j], spacing);
+				bool newConflict = minOffset(offset, tech, axis, l0[i], l1[j], spacing);
+				conflict = conflict or newConflict;
 			}
 		}
 	}
