@@ -18,6 +18,7 @@ struct Material {
 	int minor;
 
 	int minWidth;
+	bool fill;
 };
 
 struct Diffusion {

@@ -65,6 +65,40 @@ bool Rect::merge(Rect r) {
 	return false;
 }
 
+void Rect::bound(vec2i rll, vec2i rur) {
+	if (rll[0] < ll[0]) {
+		ll[0] = rll[0];
+	}
+
+	if (rll[1] < ll[1]) {
+		ll[1] = rll[1];
+	}
+
+	if (rll[0] > ur[0]) {
+		ur[0] = rll[0];
+	}
+
+	if (rll[1] > ur[1]) {
+		ur[1] = rll[1];
+	}
+
+	if (rur[0] < ll[0]) {
+		ll[0] = rur[0];
+	}
+
+	if (rur[1] < ll[1]) {
+		ll[1] = rur[1];
+	}
+
+	if (rur[0] > ur[0]) {
+		ur[0] = rur[0];
+	}
+
+	if (rur[1] > ur[1]) {
+		ur[1] = rur[1];
+	}
+}
+
 bool Rect::hasLabel() const {
 	return net >= 0;
 }
@@ -131,6 +165,16 @@ Layer::Layer(int draw, int label, int pin) {
 }
 
 Layer::~Layer() {
+}
+
+void Layer::clear() {
+	geo.clear();
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			bound[i][j].clear();
+		}
+	}
+	dirty = false;
 }
 
 void Layer::sync() {
@@ -207,6 +251,19 @@ void Layer::erase(int idx, bool doSync) {
 	}
 }
 
+Rect Layer::bbox() {
+	if (geo.size() == 0) {
+		return Rect();
+	}
+	
+	// DESIGN(edward.bingham) Naive approach first
+	Rect box(-1, geo[0].ll, geo[0].ur);
+	for (int i = 1; i < (int)geo.size(); i++) {
+		box.bound(geo[i].ll, geo[i].ur);
+	}
+	return box;
+}
+
 void Layer::merge(bool doSync) {
 	// TODO use the bounds array to improve performance
 	for (int i = (int)geo.size()-1; i >= 0; i--) {
@@ -239,40 +296,6 @@ Layout::Layout() {
 }
 
 Layout::~Layout() {
-}
-
-void Layout::updateBox(vec2i ll, vec2i ur) {
-	if (ll[0] < box.ll[0]) {
-		box.ll[0] = ll[0];
-	}
-
-	if (ll[1] < box.ll[1]) {
-		box.ll[1] = ll[1];
-	}
-
-	if (ll[0] > box.ur[0]) {
-		box.ur[0] = ll[0];
-	}
-
-	if (ll[1] > box.ur[1]) {
-		box.ur[1] = ll[1];
-	}
-
-	if (ur[0] < box.ll[0]) {
-		box.ll[0] = ur[0];
-	}
-
-	if (ur[1] < box.ll[1]) {
-		box.ll[1] = ur[1];
-	}
-
-	if (ur[0] > box.ur[0]) {
-		box.ur[0] = ur[0];
-	}
-
-	if (ur[1] > box.ur[1]) {
-		box.ur[1] = ur[1];
-	}
 }
 
 vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {

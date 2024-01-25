@@ -7,6 +7,7 @@ Material::Material() {
 	this->major = 0;
 	this->minor = 0;
 	this->minWidth = 0;
+	this->fill = false;
 }
 
 Material::Material(string name, int major, int minor) {
@@ -14,6 +15,7 @@ Material::Material(string name, int major, int minor) {
 	this->major = major;
 	this->minor = minor;
 	this->minWidth = 0;
+	this->fill = false;
 }
 
 Material::~Material() {
@@ -96,7 +98,9 @@ Tech::Tech() {
 	mats.back().minWidth = 30;
 	mats.push_back(Material("tap.drawing", 65, 44));
 	mats.push_back(Material("nwell.drawing", 64, 20));
+	mats.back().fill = true;
 	mats.push_back(Material("dnwell.drawing", 64, 18));
+	mats.back().fill = true;
 	mats.push_back(Material("pwbm.drawing", 19, 44));
 	mats.push_back(Material("pwde.drawing", 124, 20));
 	mats.push_back(Material("hvtr.drawing", 18, 20));
@@ -110,7 +114,9 @@ Tech::Tech() {
 	mats.back().minWidth = 30;
 	mats.push_back(Material("hvntm.drawing", 125, 20));
 	mats.push_back(Material("nsdm.drawing", 93, 44));
+	mats.back().fill = true;
 	mats.push_back(Material("psdm.drawing", 94, 20));
+	mats.back().fill = true;
 	mats.push_back(Material("rpm.drawing", 86, 20));
 	mats.push_back(Material("urpm.drawing", 79, 20));
 	mats.push_back(Material("npc.drawing", 95, 20));
