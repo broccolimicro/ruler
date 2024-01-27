@@ -23,11 +23,11 @@ Paint::~Paint() {
 
 Material::Material() {
 	draw = -1;
-	pin = -1;
 	label = -1;
+	pin = -1;
 }
 
-Material::Material(int draw, int pin, int label) {
+Material::Material(int draw, int label, int pin) {
 	this->draw = draw;
 	this->pin = pin;
 	this->label = label;
@@ -41,7 +41,7 @@ Diffusion::Diffusion() : Material() {
 	overhangY = 0;
 }
 
-Diffusion::Diffusion(int draw, int pin, int label, int overhangX, int overhangY) : Material(draw, pin, label) {
+Diffusion::Diffusion(int draw, int label, int pin, int overhangX, int overhangY) : Material(draw, label, pin) {
 	this->overhangX = overhangX;
 	this->overhangY = overhangY;
 }
@@ -67,7 +67,7 @@ Model::~Model() {
 Routing::Routing() : Material() {
 }
 
-Routing::Routing(int draw, int pin, int label) : Material(draw, pin, label) {
+Routing::Routing(int draw, int label, int pin) : Material(draw, label, pin) {
 }
 
 Routing::~Routing() {
@@ -82,7 +82,7 @@ Via::Via() : Material() {
 	upHi = 0;
 }
 
-Via::Via(int draw, int pin, int label, int downLevel, int upLevel, int downLo, int downHi, int upLo, int upHi) : Material(draw, pin, label) {
+Via::Via(int draw, int label, int pin, int downLevel, int upLevel, int downLo, int downHi, int upLo, int upHi) : Material(draw, label, pin) {
 	this->downLevel = downLevel;
 	this->upLevel = upLevel;
 	this->downLo = downLo;
