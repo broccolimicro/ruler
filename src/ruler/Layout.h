@@ -69,6 +69,8 @@ struct Layer {
 	// indexed as [axis][fromTo]
 	vector<Bound> bound[2][2];
 
+	bool isRouting(const Tech &tech);
+
 	void clear();
 	void sync();
 
@@ -99,11 +101,11 @@ struct Layout {
 	void push(int layerID, vector<Rect> rects, bool doSync=false);
 
 	void merge(bool doSync=false);
-	
+
 	void emit(const Tech &tech, gdstk::Library &lib) const;
 };
 
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0, bool mergeNet=true);
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1, bool mergeNet=true);
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing=0, bool mergeNet=true);
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, bool mergeNet=true, bool routingOnly=false);
 
 }

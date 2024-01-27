@@ -167,6 +167,22 @@ Layer::Layer(int draw, int label, int pin) {
 Layer::~Layer() {
 }
 
+bool Layer::isRouting(const Tech &tech) {
+	for (int i = 0; i < (int)tech.wires.size(); i++) {
+		if (draw == tech.wires[i].drawing) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < (int)tech.vias.size(); i++) {
+		if (draw == tech.vias[i].drawing) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void Layer::clear() {
 	geo.clear();
 	for (int i = 0; i < 2; i++) {
@@ -358,7 +374,7 @@ bool operator<(const StackElem &e0, const StackElem &e1) {
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
 // will never intersect.
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing, bool mergeNet) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing, bool mergeNet) {
 	if (l0.dirty) {
 		l0.sync();
 	}
@@ -383,9 +399,10 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 			for (int fromTo = 0; fromTo < 2; fromTo++) {
 				int boundIdx = idx[layer][fromTo];
 				const vector<Bound> &bounds = layer ? l1.bound[1-axis][fromTo] : l0.bound[1-axis][fromTo];
+				int shift = layer ? l1Shift : l0Shift;
 
 				if (boundIdx < (int)bounds.size()) {
-					int value = bounds[boundIdx].pos + (2*(fromTo) - 1)*spacing/2;
+					int value = bounds[boundIdx].pos + shift + (2*fromTo - 1)*spacing/2;
 					if (minLayer < 0 or value < minValue) {
 						minValue = value;
 						minLayer = layer;
@@ -455,14 +472,18 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, in
 	return conflict;
 }
 
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1, bool mergeNet) {
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, bool mergeNet, bool routingOnly) {
 	bool conflict = false;
 	for (int i = 0; i < (int)l0.size();	i++) {
-		for (int j = 0; j < (int)l1.size(); j++) {
-			int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
-			if (spacing >= 0) {
-				bool newConflict = minOffset(offset, tech, axis, l0[i], l1[j], spacing, mergeNet);
-				conflict = conflict or newConflict;
+		if (not routingOnly or l0[i].isRouting(tech)) {
+			for (int j = 0; j < (int)l1.size(); j++) {
+				if (not routingOnly or l1[j].isRouting(tech)) {
+					int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
+					if (spacing >= 0) {
+						bool newConflict = minOffset(offset, tech, axis, l0[i], l0Shift, l1[j], l1Shift, spacing, mergeNet);
+						conflict = conflict or newConflict;
+					}
+				}
 			}
 		}
 	}
