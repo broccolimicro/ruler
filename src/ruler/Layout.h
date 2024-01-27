@@ -97,8 +97,10 @@ struct Layout {
 	vector<Layer> layers;
 	
 	vector<Layer>::iterator findLayer(int draw, int layer=-1, int pin=-1);
-	void push(int layerID, Rect rect, bool doSync=false);
-	void push(int layerID, vector<Rect> rects, bool doSync=false);
+	void push(int layer, Rect rect, bool doSync=false);
+	void push(int layer, vector<Rect> rects, bool doSync=false);
+	void push(const Material &mat, Rect rect, bool doSync=false);
+	void push(const Material &mat, vector<Rect> rects, bool doSync=false);
 
 	void merge(bool doSync=false);
 

@@ -104,7 +104,7 @@ bool Rect::hasLabel() const {
 }
 
 gdstk::Polygon *Rect::emit(const Tech &tech, int layer) const {
-	return new gdstk::Polygon(gdstk::rectangle(gdstk::Vec2{(double)ll[0], (double)ll[1]}, gdstk::Vec2{(double)ur[0], (double)ur[1]}, gdstk::make_tag(tech.mats[layer].major, tech.mats[layer].minor)));
+	return new gdstk::Polygon(gdstk::rectangle(gdstk::Vec2{(double)ll[0], (double)ll[1]}, gdstk::Vec2{(double)ur[0], (double)ur[1]}, gdstk::make_tag(tech.paint[layer].major, tech.paint[layer].minor)));
 }
 
 gdstk::Label *Rect::emitLabel(const Tech &tech, const Layout &layout, int layer) const {
@@ -112,7 +112,7 @@ gdstk::Label *Rect::emitLabel(const Tech &tech, const Layout &layout, int layer)
 		return nullptr;
 	}
 	return new gdstk::Label{
-		.tag = gdstk::make_tag(tech.mats[layer].major, tech.mats[layer].minor),
+		.tag = gdstk::make_tag(tech.paint[layer].major, tech.paint[layer].minor),
 		.text = strdup(layout.nets[net].c_str()),
 		.origin = gdstk::Vec2{(double)((ll[0] + ur[0])/2), (double)((ll[1]+ur[1])/2)},
 		.magnification = 1,
@@ -169,13 +169,13 @@ Layer::~Layer() {
 
 bool Layer::isRouting(const Tech &tech) {
 	for (int i = 0; i < (int)tech.wires.size(); i++) {
-		if (draw == tech.wires[i].drawing) {
+		if (draw == tech.wires[i].draw) {
 			return true;
 		}
 	}
 
 	for (int i = 0; i < (int)tech.vias.size(); i++) {
-		if (draw == tech.vias[i].drawing) {
+		if (draw == tech.vias[i].draw) {
 			return true;
 		}
 	}
@@ -319,6 +319,15 @@ vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {
 	if (layer == layers.end() or layer->draw != draw) {
 		layer = layers.insert(layer, Layer(draw, label, pin));
 	}
+	if (layer->draw < 0) {
+		layer->draw = draw;
+	}
+	if (layer->label < 0) {
+		layer->label = label;
+	}
+	if (layer->pin < 0) {
+		layer->pin = pin;
+	}
 	return layer;
 }
 
@@ -328,13 +337,22 @@ void Layout::merge(bool doSync) {
 	}
 }
 
-void Layout::push(int layerID, Rect rect, bool doSync) {
-	auto layer = findLayer(layerID, layerID);
-	layer->push(rect, doSync);
+void Layout::push(int layer, Rect rect, bool doSync) {
+	auto iter = findLayer(layer);
+	iter->push(rect, doSync);
 }
 
-void Layout::push(int layerID, vector<Rect> rects, bool doSync) {
-	findLayer(layerID, layerID)->push(rects, doSync);
+void Layout::push(int layer, vector<Rect> rects, bool doSync) {
+	findLayer(layer)->push(rects, doSync);
+}
+
+void Layout::push(const Material &mat, Rect rect, bool doSync) {
+	auto iter = findLayer(mat.draw, mat.label, mat.pin);
+	iter->push(rect, doSync);
+}
+
+void Layout::push(const Material &mat, vector<Rect> rects, bool doSync) {
+	findLayer(mat.draw, mat.label, mat.pin)->push(rects, doSync);
 }
 
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {

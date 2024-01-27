@@ -8,10 +8,10 @@ using namespace std;
 
 namespace ruler {
 
-struct Material {
-	Material();
-	Material(string name, int major = 0, int minor = 0);
-	~Material();
+struct Paint {
+	Paint();
+	Paint(string name, int major = 0, int minor = 0);
+	~Paint();
 
 	string name;
 	int major;
@@ -21,13 +21,21 @@ struct Material {
 	bool fill;
 };
 
-struct Diffusion {
-	Diffusion();
-	Diffusion(int layer, int overhangX, int overhangY);
-	~Diffusion();
+struct Material {
+	Material();
+	Material(int draw, int label, int pin);
+	~Material();
+	
+	// these index into Tech::paint
+	int draw;
+	int label;
+	int pin;
+};
 
-	// these index into Tech::mats
-	int layer;
+struct Diffusion : Material {
+	Diffusion();
+	Diffusion(int draw, int label, int pin, int overhangX, int overhangY);
+	~Diffusion();
 
 	int overhangX;
 	int overhangY;
@@ -47,24 +55,19 @@ struct Model {
 	string name;
 
 	// Start top down
-	vector<Diffusion> mats;
+	vector<Diffusion> paint;
 	int polyOverhang;
 };
 
-struct Routing {
+struct Routing : Material {
 	Routing();
-	Routing(int drawing, int pin, int label);
+	Routing(int draw, int label, int pin);
 	~Routing();
-	
-	// index into Tech::mats
-	int drawing;
-	int pin;
-	int label;
 };
 
-struct Via {
+struct Via : Material {
 	Via();
-	Via(int downLevel, int upLevel, int layer, int downLo = 0, int downHi = 0, int upLo = 0, int upHi = 0);
+	Via(int draw, int label, int pin, int downLevel, int upLevel, int downLo = 0, int downHi = 0, int upLo = 0, int upHi = 0);
 	~Via();
 
 	// index into Tech::wires when >= 0
@@ -72,9 +75,6 @@ struct Via {
 	int downLevel;
 	int upLevel;
 	
-	// index into Tech::mats
-	int drawing;
-
 	int downLo;
 	int downHi;
 	int upLo;
@@ -88,7 +88,7 @@ struct Tech {
 	double dbunit;
 
 	int boundary;
-	vector<Material> mats;
+	vector<Paint> paint;
 	vector<Model> models;
 	vector<Via> vias;
 	vector<Routing> wires;
@@ -96,7 +96,7 @@ struct Tech {
 
 	void setSpacing(int l0, int l1, int value);	
 	int findSpacing(int l0, int l1) const;
-	int findMat(string name) const;
+	int findPaint(string name) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;
 };
