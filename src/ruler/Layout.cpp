@@ -355,6 +355,13 @@ void Layout::push(const Material &mat, vector<Rect> rects, bool doSync) {
 	findLayer(mat.draw, mat.label, mat.pin)->push(rects, doSync);
 }
 
+void Layout::clear() {
+	name.clear();
+	box = Rect();
+	layers.clear();
+	nets.clear();
+}
+
 void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());

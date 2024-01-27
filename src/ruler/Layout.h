@@ -104,6 +104,7 @@ struct Layout {
 
 	void merge(bool doSync=false);
 
+	void clear();
 	void emit(const Tech &tech, gdstk::Library &lib) const;
 };
 
