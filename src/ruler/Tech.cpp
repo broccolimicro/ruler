@@ -411,6 +411,7 @@ Tech::Tech() {
 	setSpacing(findPaint("via4.drawing"), findPaint("via4.drawing"), 160);
 	setSpacing(findPaint("met5.drawing"), findPaint("met5.drawing"), 320);
 	setSpacing(findPaint("poly.drawing"), findPaint("licon1.drawing"), 18);
+	//setSpacing(findPaint("diff.drawing"), findPaint("nwell.drawing"), 68);
 	//setSpacing(findPaint("poly.drawing"), findPaint("diff.drawing"), 38);
 	//setSpacing(findPaint("licon1.drawing"), findPaint("diff.drawing"), 38);
 
