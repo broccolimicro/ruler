@@ -76,19 +76,15 @@ Routing::~Routing() {
 Via::Via() : Material() {
 	upLevel = 0;
 	downLevel = 0;
-	downLo = 0;
-	downHi = 0;
-	upLo = 0;
-	upHi = 0;
+	dn = vec2i(0,0);
+	up = vec2i(0,0);
 }
 
 Via::Via(int draw, int label, int pin, int downLevel, int upLevel, int downLo, int downHi, int upLo, int upHi) : Material(draw, label, pin) {
 	this->downLevel = downLevel;
 	this->upLevel = upLevel;
-	this->downLo = downLo;
-	this->downHi = downHi;
-	this->upLo = upLo;
-	this->upHi = upHi;
+	this->dn = vec2i(downLo, downHi);
+	this->up = vec2i(upLo, upHi);
 }
 
 Via::~Via() {

@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 
+#include "vector.h"
+
 using namespace std;
 
 namespace ruler {
@@ -74,11 +76,10 @@ struct Via : Material {
 	// index into Tech::models when < 0
 	int downLevel;
 	int upLevel;
-	
-	int downLo;
-	int downHi;
-	int upLo;
-	int upHi;
+
+	// asymmetric enclosure rules with index 1 being the longer of the two
+	vec2i dn;
+	vec2i up;	
 };
 
 struct Tech {
