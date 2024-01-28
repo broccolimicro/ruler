@@ -37,13 +37,11 @@ Material::~Material() {
 }
 
 Diffusion::Diffusion() : Material() {
-	overhangX = 0;
-	overhangY = 0;
+	overhang = vec2i(0,0);
 }
 
-Diffusion::Diffusion(int draw, int label, int pin, int overhangX, int overhangY) : Material(draw, label, pin) {
-	this->overhangX = overhangX;
-	this->overhangY = overhangY;
+Diffusion::Diffusion(int draw, int label, int pin, vec2i overhang) : Material(draw, label, pin) {
+	this->overhang = overhang;
 }
 
 Diffusion::~Diffusion() {
@@ -359,17 +357,17 @@ Tech::Tech() {
 	paint.push_back(Paint("cmm5.waffleDrop", 117, 4));
 
 	models.push_back(Model(Model::NMOS, "sky130_fd_pr__nfet_01v8", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, 50, 0));
-	models.back().paint.push_back(Diffusion(findPaint("nsdm.drawing"), -1, -1, 25, 25));
+	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(findPaint("nsdm.drawing"), -1, -1, vec2i(25, 25)));
 	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, 50, 0));
-	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, 25, 25));
-	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, 36, 36));
+	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, vec2i(25, 25)));
+	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, vec2i(36, 36)));
 	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8_hvt", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, 50, 0));
-	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, 25, 25));
-	models.back().paint.push_back(Diffusion(findPaint("hvtp.drawing"), -1, -1, 11, 11));
-	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, 36, 36));
+	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, vec2i(25, 25)));
+	models.back().paint.push_back(Diffusion(findPaint("hvtp.drawing"), -1, -1, vec2i(11, 11)));
+	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, vec2i(36, 36)));
 
 
 	vias.push_back(Via(findPaint("licon1.drawing"), -1, -1, -1, 1, 8, 12, 0, 16));

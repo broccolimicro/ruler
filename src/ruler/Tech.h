@@ -36,11 +36,10 @@ struct Material {
 
 struct Diffusion : Material {
 	Diffusion();
-	Diffusion(int draw, int label, int pin, int overhangX, int overhangY);
+	Diffusion(int draw, int label, int pin, vec2i overhang);
 	~Diffusion();
 
-	int overhangX;
-	int overhangY;
+	vec2i overhang;
 };
 
 struct Model {
