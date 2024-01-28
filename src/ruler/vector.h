@@ -812,6 +812,46 @@ vec<t, s> clamp(vec<t, s> v, t low, t high)
 	return v;
 }
 
+template <class t, int s>
+vec<t, s> max(vec<t, s> v, t n)
+{
+	for (int i = 0; i < s; i++) {
+		if (v[i] < n)
+			v[i] = n;
+	}
+	return v;
+}
+
+template <class t, int s>
+vec<t, s> min(vec<t, s> v, t n)
+{
+	for (int i = 0; i < s; i++) {
+		if (v[i] > n)
+			v[i] = n;
+	}
+	return v;
+}
+
+template <class t, int s>
+vec<t, s> max(vec<t, s> v0, vec<t, s> v1)
+{
+	for (int i = 0; i < s; i++) {
+		if (v0[i] < v1[i])
+			v0[i] = v1[i];
+	}
+	return v0;
+}
+
+template <class t, int s>
+vec<t, s> min(vec<t, s> v0, vec<t, s> v1)
+{
+	for (int i = 0; i < s; i++) {
+		if (v0[i] > v1[i])
+			v0[i] = v1[i];
+	}
+	return v0;
+}
+
 typedef vec<double,  1>	vec1d;
 typedef vec<double,  2>	vec2d;
 typedef vec<double,  3>	vec3d;
