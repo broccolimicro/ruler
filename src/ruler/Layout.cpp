@@ -145,11 +145,6 @@ Layer::Layer() {
 	label = -1;
 	pin = -1;
 	dirty = false;
-	for (int i = 0; i < 2; i++) {
-		for (int j = 0; j < 2; j++) {
-			bound[i][j] = vector<Bound>();
-		}
-	}
 }
 
 Layer::Layer(int draw, int label, int pin) {
@@ -157,11 +152,6 @@ Layer::Layer(int draw, int label, int pin) {
 	this->label = label;
 	this->pin = pin;
 	this->dirty = false;
-	for (int i = 0; i < 2; i++) {
-		for (int j = 0; j < 2; j++) {
-			bound[i][j] = vector<Bound>();
-		}
-	}
 }
 
 Layer::~Layer() {

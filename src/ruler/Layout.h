@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <gdstk/gdstk.hpp>
 
 #include "vector.h"
@@ -67,7 +68,7 @@ struct Layer {
 	bool dirty;
 	
 	// indexed as [axis][fromTo]
-	vector<Bound> bound[2][2];
+	array<array<vector<Bound>, 2>, 2> bound;
 
 	bool isRouting(const Tech &tech);
 
