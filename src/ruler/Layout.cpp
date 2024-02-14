@@ -490,16 +490,14 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, int substrateMode, int routingMode) {
 	bool conflict = false;
 	for (int i = 0; i < (int)l0.size();	i++) {
-		bool l0IsRouting = l0[i].isRouting(tech);
-		if ((l0IsRouting and routingMode != Layout::IGNORE) or (not l0IsRouting and substrateMode != Layout::IGNORE)) {
-			bool l0MergeNet = (l0IsRouting and routingMode == Layout::MERGENET) or (not l0IsRouting and substrateMode == Layout::MERGENET);
+		int l0Mode = (l0[i].isRouting(tech) ? routingMode : substrateMode);
+		if (l0Mode != Layout::IGNORE) {
 			for (int j = 0; j < (int)l1.size(); j++) {
-				bool l1IsRouting = l1[j].isRouting(tech);
-				if ((l1IsRouting and routingMode != Layout::IGNORE) or (not l1IsRouting and substrateMode != Layout::IGNORE)) {
-					bool l1MergeNet = (l1IsRouting and routingMode == Layout::MERGENET) or (not l1IsRouting and substrateMode == Layout::MERGENET);
+				int l1Mode = (l1[j].isRouting(tech) ? routingMode : substrateMode);
+				if (l1Mode != Layout::IGNORE) {
 					int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
 					if (spacing >= 0) {
-						bool newConflict = minOffset(offset, tech, axis, l0[i], l0Shift, l1[j], l1Shift, spacing, l0MergeNet and l1MergeNet);
+						bool newConflict = minOffset(offset, tech, axis, l0[i], l0Shift, l1[j], l1Shift, spacing, l0Mode == Layout::MERGENET and l1Mode == Layout::MERGENET);
 						conflict = conflict or newConflict;
 					}
 				}
