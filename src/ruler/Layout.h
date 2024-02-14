@@ -92,6 +92,12 @@ struct Layout {
 	Layout();
 	~Layout();
 
+	enum {
+		DEFAULT = 0,
+		MERGENET = 1,
+		IGNORE = 2,
+	};
+
 	string name;
 	Rect box;
 	vector<string> nets;
@@ -110,6 +116,6 @@ struct Layout {
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing=0, bool mergeNet=true);
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, bool mergeNet=true, bool routingOnly=false);
+bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, int substrateMode=Layout::DEFAULT, int routingMode=Layout::DEFAULT);
 
 }
