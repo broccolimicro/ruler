@@ -8,7 +8,7 @@ namespace ruler {
 Rect::Rect() {
 	net = -1;
 	ll = vec2i(0,0);
-	ur = vec2i(0,0);	
+	ur = vec2i(0,0);
 }
 
 Rect::Rect(int net, vec2i ll, vec2i ur) {
@@ -65,7 +65,13 @@ bool Rect::merge(Rect r) {
 	return false;
 }
 
-void Rect::bound(vec2i rll, vec2i rur) {
+Rect &Rect::bound(vec2i rll, vec2i rur) {
+	if (ll[0] == ur[0] and ll[1] == ur[1]) {
+		ll = rll;
+		ur = rur;
+		return *this;
+	}
+
 	if (rll[0] < ll[0]) {
 		ll[0] = rll[0];
 	}
@@ -97,7 +103,51 @@ void Rect::bound(vec2i rll, vec2i rur) {
 	if (rur[1] > ur[1]) {
 		ur[1] = rur[1];
 	}
+
+	return *this;
 }
+
+Rect &Rect::bound(Rect r) {
+	if (ll[0] == ur[0] and ll[1] == ur[1]) {
+		ll = r.ll;
+		ur = r.ur;
+		return *this;
+	}
+
+	if (r.ll[0] < ll[0]) {
+		ll[0] = r.ll[0];
+	}
+
+	if (r.ll[1] < ll[1]) {
+		ll[1] = r.ll[1];
+	}
+
+	if (r.ll[0] > ur[0]) {
+		ur[0] = r.ll[0];
+	}
+
+	if (r.ll[1] > ur[1]) {
+		ur[1] = r.ll[1];
+	}
+
+	if (r.ur[0] < ll[0]) {
+		ll[0] = r.ur[0];
+	}
+
+	if (r.ur[1] < ll[1]) {
+		ll[1] = r.ur[1];
+	}
+
+	if (r.ur[0] > ur[0]) {
+		ur[0] = r.ur[0];
+	}
+
+	if (r.ur[1] > ur[1]) {
+		ur[1] = r.ur[1];
+	}
+	return *this;
+}
+
 
 bool Rect::hasLabel() const {
 	return net >= 0;
@@ -258,7 +308,7 @@ void Layer::erase(int idx, bool doSync) {
 }
 
 Rect Layer::bbox() {
-	if (geo.size() == 0) {
+	if (geo.empty()) {
 		return Rect();
 	}
 	
@@ -299,6 +349,7 @@ bool operator<(const Layer &l0, int id) {
 }
 
 Layout::Layout() {
+	box = Rect();
 }
 
 Layout::~Layout() {
@@ -321,6 +372,19 @@ vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {
 	return layer;
 }
 
+Rect Layout::bbox() {
+	if (layers.empty()) {
+		return Rect();
+	}
+	
+	Rect box = layers[0].bbox();
+	for (int i = 1; i < (int)layers.size(); i++) {
+		Rect sub = layers[i].bbox();
+		box.bound(sub.ll, sub.ur);
+	}
+	return box;
+}
+
 void Layout::merge(bool doSync) {
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
 		layer->merge(doSync);
@@ -328,8 +392,7 @@ void Layout::merge(bool doSync) {
 }
 
 void Layout::push(int layer, Rect rect, bool doSync) {
-	auto iter = findLayer(layer);
-	iter->push(rect, doSync);
+	findLayer(layer)->push(rect, doSync);
 }
 
 void Layout::push(int layer, vector<Rect> rects, bool doSync) {
@@ -337,8 +400,7 @@ void Layout::push(int layer, vector<Rect> rects, bool doSync) {
 }
 
 void Layout::push(const Material &mat, Rect rect, bool doSync) {
-	auto iter = findLayer(mat.draw, mat.label, mat.pin);
-	iter->push(rect, doSync);
+	findLayer(mat.draw, mat.label, mat.pin)->push(rect, doSync);
 }
 
 void Layout::push(const Material &mat, vector<Rect> rects, bool doSync) {

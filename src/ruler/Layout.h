@@ -31,7 +31,8 @@ struct Rect {
 	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
 	bool merge(Rect r);
 	bool hasLabel() const;
-	void bound(vec2i rll, vec2i rur);
+	Rect &bound(vec2i rll, vec2i rur);
+	Rect &bound(Rect r);
 
 	gdstk::Polygon *emit(const Tech &tech, int layer) const;
 	gdstk::Label *emitLabel(const Tech &tech, const Layout &layout, int layer) const;
@@ -109,6 +110,7 @@ struct Layout {
 	void push(const Material &mat, Rect rect, bool doSync=false);
 	void push(const Material &mat, vector<Rect> rects, bool doSync=false);
 
+	Rect bbox();
 	void merge(bool doSync=false);
 
 	void clear();
