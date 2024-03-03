@@ -553,10 +553,10 @@ bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l
 	bool conflict = false;
 	for (int i = 0; i < (int)l0.size();	i++) {
 		int l0Mode = (l0[i].isRouting(tech) ? routingMode : substrateMode);
-		if (l0Mode != Layout::IGNORE) {
+		if (l0Mode != Layout::IGNORE and not tech.paint[l0[i].draw].fill) {
 			for (int j = 0; j < (int)l1.size(); j++) {
 				int l1Mode = (l1[j].isRouting(tech) ? routingMode : substrateMode);
-				if (l1Mode != Layout::IGNORE) {
+				if (l1Mode != Layout::IGNORE and not tech.paint[l1[j].draw].fill) {
 					int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
 					if (spacing >= 0) {
 						bool newConflict = minOffset(offset, tech, axis, l0[i], l0Shift, l1[j], l1Shift, spacing, l0Mode == Layout::MERGENET and l1Mode == Layout::MERGENET);

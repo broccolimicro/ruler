@@ -105,6 +105,7 @@ Tech::Tech() {
 	paint.push_back(Paint("hvtr.drawing", 18, 20));
 	paint.push_back(Paint("hvtp.drawing", 78, 44));
 	paint.back().minWidth = 76;
+	paint.back().fill = true;
 	paint.push_back(Paint("ldntm.drawing", 11, 44));
 	paint.push_back(Paint("hvi.drawing", 75, 20));
 	paint.push_back(Paint("tunm.drawing", 80, 20));
