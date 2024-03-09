@@ -214,11 +214,20 @@ bool Layer::isRouting(const Tech &tech) {
 		}
 	}
 
-	for (int i = 0; i < (int)tech.vias.size(); i++) {
-		if (draw == tech.vias[i].draw) {
-			return true;
-		}
-	}
+	// TODO(edward.bingham) there isn't any way to discern between routing licon
+	// and diffusion licon unless we record it separately as layer metadata in
+	// the layout. It's important not to count diffusion licon as routing to
+	// avoid unnecessary cycle breaks between transistor gate pins and contact
+	// pins in the transistor stacks. For now, we can discount all vias across
+	// the board, but this will need to be fixed down the road. Further, this
+	// whole distinction will need to be rethought when complex DRC rules are
+	// introduced.
+
+	//for (int i = 0; i < (int)tech.vias.size(); i++) {
+	//	if (tech.vias[i].downLevel >= 0 and tech.vias[i].upLevel >= 0 and draw == tech.vias[i].draw) {
+	//		return true;
+	//	}
+	//}
 
 	return false;
 }
