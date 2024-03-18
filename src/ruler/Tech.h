@@ -8,6 +8,8 @@
 
 using namespace std;
 
+int flip(int idx);
+
 namespace ruler {
 
 struct Paint {
@@ -21,6 +23,9 @@ struct Paint {
 
 	int minWidth;
 	bool fill;
+
+	// negative index into Tech::rules
+	vector<int> out;
 };
 
 struct Material {
@@ -81,6 +86,33 @@ struct Via : Material {
 	vec2i up;	
 };
 
+struct Rule {
+	Rule();
+	Rule(int type, vector<int> operands=vector<int>(), vector<int> params=vector<int>());
+	~Rule();
+
+	enum {
+		NOT = 0,
+		AND = 1,
+		OR = 2,
+		SPACING = 3,
+	};
+
+	int type;
+
+	// positive operands refer to paint layers (index into Tech::paint)
+	// negative operands refer to operation outputs (index into Tech::rules)
+	vector<int> operands;
+
+	// These are constant valued parameters to be used in more complex operations
+	vector<int> params;
+
+	// negative index into Tech::rules
+	vector<int> out;
+
+	bool isOperator() const;
+};
+
 struct Tech {
 	Tech();
 	~Tech();
@@ -92,10 +124,17 @@ struct Tech {
 	vector<Model> models;
 	vector<Via> vias;
 	vector<Routing> wires;
-	map<pair<int, int>, int> spacing;
+	vector<Rule> rules;
 
-	void setSpacing(int l0, int l1, int value);	
-	int findSpacing(int l0, int l1) const;
+	int getOr(int l0, int l1) const;
+	int setOr(int l0, int l1);
+	int getAnd(int l0, int l1) const;
+	int setAnd(int l0, int l1);
+	int getNot(int l) const;
+	int setNot(int l);
+	int getSpacing(int l0, int l1) const;
+	int setSpacing(int l0, int l1, int value);
+
 	int findPaint(string name) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;

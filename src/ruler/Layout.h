@@ -30,6 +30,7 @@ struct Rect {
 
 	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
 	bool merge(Rect r);
+	bool overlaps(Rect r);
 	bool hasLabel() const;
 	Rect &bound(vec2i rll, vec2i rur);
 	Rect &bound(Rect r);
@@ -72,6 +73,7 @@ struct Layer {
 	array<array<vector<Bound>, 2>, 2> bound;
 
 	bool isRouting(const Tech &tech);
+	bool isFill(const Tech &tech);
 
 	void clear();
 	void sync();
@@ -88,6 +90,28 @@ struct Layer {
 
 bool operator<(const Layer &l0, const Layer &l1);
 bool operator<(const Layer &l, int id);
+
+Layer operator&(const Layer &l0, const Layer &l1);
+Layer operator|(const Layer &l0, const Layer &l1);
+Layer operator~(const Layer &l);
+
+struct Evaluation {
+	Evaluation();
+	Evaluation(const Tech &tech, Layout &layout);
+	~Evaluation();
+
+	Layout *layout;
+	// negative index into Tech::rules -> geometry
+	map<int, Layer> layers;
+
+	// negative index into Tech::rules -> count of ready operands in layers
+	map<int, int> incomplete;
+
+	void init(const Tech &tech, Layout &layout);
+	bool has(int idx);
+	Layer &at(int idx);
+	void evaluate(const Tech &tech, Layout &layout);
+};
 
 struct Layout {
 	Layout();
@@ -115,9 +139,11 @@ struct Layout {
 
 	void clear();
 	void emit(const Tech &tech, gdstk::Library &lib) const;
+
+	Evaluation eval(const Tech &tech);
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing=0, bool mergeNet=true);
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, int substrateMode=Layout::DEFAULT, int routingMode=Layout::DEFAULT);
+bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode=Layout::DEFAULT, int routingMode=Layout::DEFAULT);
 
 }

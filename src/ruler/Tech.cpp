@@ -1,5 +1,9 @@
 #include "Tech.h"
 
+int flip(int idx) {
+	return -idx-1;
+}
+
 namespace ruler {
 
 Paint::Paint() {
@@ -86,6 +90,23 @@ Via::Via(int draw, int label, int pin, int downLevel, int upLevel, int downLo, i
 }
 
 Via::~Via() {
+}
+
+Rule::Rule() {
+	this->type = -1;
+}
+
+Rule::Rule(int type, vector<int> operands, vector<int> params) {
+	this->type = type;
+	this->operands = operands;
+	this->params = params;
+}
+
+Rule::~Rule() {
+}
+
+bool Rule::isOperator() const {
+	return type < Rule::SPACING;
 }
 
 Tech::Tech() {
@@ -416,19 +437,142 @@ Tech::Tech() {
 Tech::~Tech() {
 }
 
-void Tech::setSpacing(int l0, int l1, int value) {
-	auto result = spacing.insert(pair<pair<int, int>, int>(pair<int, int>(min(l0,l1), max(l0,l1)), value));
-	if (not result.second) {
-		result.first->second = value;
+int Tech::getOr(int l0, int l1) const {
+	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
 	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::OR and (int)rules[i].operands.size() == 2 and rules[i].operands[0] == l0 and rules[i].operands[1] == l1) {
+			return flip(i);
+		}
+	}
+
+	return std::numeric_limits<int>::max();
 }
 
-int Tech::findSpacing(int l0, int l1) const {
-	auto i = spacing.find(pair<int, int>(min(l0,l1), max(l0,l1)));
-	if (i != spacing.end()) {
-		return i->second;
+int Tech::setOr(int l0, int l1) {
+	int result = getOr(l0, l1);
+	if (result < 0) {
+		return result;
 	}
-	return -1;
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::OR, {l0, l1}));
+	if (l0 >= 0) {
+		paint[l0].out.push_back(result);
+	} else {
+		rules[flip(l0)].out.push_back(result);
+	}
+	if (l1 >= 0) {
+		paint[l1].out.push_back(result);
+	} else {
+		rules[flip(l1)].out.push_back(result);
+	}
+	return result;
+}
+
+int Tech::getAnd(int l0, int l1) const {
+	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
+	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::AND and (int)rules[i].operands.size() == 2 and rules[i].operands[0] == l0 and rules[i].operands[1] == l1) {
+			return flip(i);
+		}
+	}
+	return std::numeric_limits<int>::max();
+}
+
+int Tech::setAnd(int l0, int l1) {
+	int result = getAnd(l0, l1);
+	if (result < 0) {
+		return result;
+	}
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::AND, {l0, l1}));
+	if (l0 >= 0) {
+		paint[l0].out.push_back(result);
+	} else {
+		rules[flip(l0)].out.push_back(result);
+	}
+	if (l1 >= 0) {
+		paint[l1].out.push_back(result);
+	} else {
+		rules[flip(l1)].out.push_back(result);
+	}
+	return result;
+}
+
+int Tech::getNot(int l) const {
+	if (l >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
+	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::NOT and (int)rules[i].operands.size() == 1 and rules[i].operands[0] == l) {
+			return flip(i);
+		}
+	}
+	return std::numeric_limits<int>::max();
+}
+
+
+int Tech::setNot(int l) {
+	int result = getNot(l);
+	if (result < 0) {
+		return result;
+	}
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::NOT, {l}));
+	if (l >= 0) {
+		paint[l].out.push_back(result);
+	} else {
+		rules[flip(l)].out.push_back(result);
+	}
+	return result;
+}
+
+int Tech::getSpacing(int l0, int l1) const {
+	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
+	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::SPACING and (int)rules[i].operands.size() == 2 and rules[i].operands[0] == l0 and rules[i].operands[1] == l1 and (int)rules[i].params.size() == 1) {
+			return flip(i);
+		}
+	}
+	return std::numeric_limits<int>::max();
+}
+
+
+int Tech::setSpacing(int l0, int l1, int value) {
+	int result = getSpacing(l0, l1);
+	if (result < 0) {
+		int idx = flip(result);
+		if (value < rules[idx].params[0]) {
+			rules[idx].params[0] = value;
+		}
+		return result;
+	}
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::SPACING, {l0, l1}, {value}));
+	if (l0 >= 0) {
+		paint[l0].out.push_back(result);
+	} else {
+		rules[flip(l0)].out.push_back(result);
+	}
+	if (l1 >= 0) {
+		paint[l1].out.push_back(result);
+	} else {
+		rules[flip(l1)].out.push_back(result);
+	}
+	return result;
 }
 
 int Tech::findPaint(string name) const {

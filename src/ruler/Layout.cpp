@@ -65,6 +65,10 @@ bool Rect::merge(Rect r) {
 	return false;
 }
 
+bool Rect::overlaps(Rect r) {
+	return ll[0] <= r.ur[0] and r.ll[0] <= ur[0] and ll[1] <= r.ur[1] and r.ll[1] <= ur[1];
+}
+
 Rect &Rect::bound(vec2i rll, vec2i rur) {
 	if (ll[0] == ur[0] and ll[1] == ur[1]) {
 		ll = rll;
@@ -177,6 +181,55 @@ bool operator<(const Bound &b, int p) {
 	return (b.pos < p);
 }
 
+// TODO(edward.bingham) These are just the naive implementations of these
+// operators. The assumption is that cells are generally fairly small layouts.
+// If the DRC engine ends up getting more use, these functions need to be
+// highly optimized.
+Layer operator&(Layer &l0, Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				result.push(Rect(-1, max(l0.geo[i].ll, l1.geo[j].ll), min(l0.geo[i].ur, l1.geo[j].ur)));
+			}
+		}
+	}
+	return result;
+}
+
+Layer operator|(Layer &l0, Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.push(l0.geo);
+	result.push(l1.geo);
+	result.merge(true);
+	return result;
+}
+
+Layer operator~(Layer &l) {
+	//l.sync();
+
+	int lo = std::numeric_limits<int>::min();
+	int hi = std::numeric_limits<int>::max();
+
+	Layer result;
+	for (int i = 0; i < (int)l.geo.size(); i++) {
+		Layer step;
+		step.push(Rect(-1, vec2i(l.geo[i].ur[0], lo), vec2i(hi, hi)));
+		step.push(Rect(-1, vec2i(lo, lo), vec2i(l.geo[i].ll[0], hi)));
+		step.push(Rect(-1, vec2i(l.geo[i].ll[0], lo), vec2i(l.geo[i].ur[0], l.geo[i].ll[1])));
+		step.push(Rect(-1, vec2i(l.geo[i].ll[0], l.geo[i].ur[1]), vec2i(l.geo[i].ur[0], hi)));
+		result = result & step;
+		result.merge();
+	}
+	return result;
+}
+
 Bound::Bound() {
 	idx = -1;
 	pos = 0;
@@ -208,6 +261,10 @@ Layer::~Layer() {
 }
 
 bool Layer::isRouting(const Tech &tech) {
+	if (draw < 0) {
+		return false;
+	}
+
 	for (int i = 0; i < (int)tech.wires.size(); i++) {
 		if (draw == tech.wires[i].draw) {
 			return true;
@@ -230,6 +287,14 @@ bool Layer::isRouting(const Tech &tech) {
 	//}
 
 	return false;
+}
+
+bool Layer::isFill(const Tech &tech) {
+	if (draw < 0) {
+		return false;
+	}
+
+	return tech.paint[draw].fill;
 }
 
 void Layer::clear() {
@@ -355,6 +420,78 @@ bool operator<(const Layer &l0, const Layer &l1) {
 
 bool operator<(const Layer &l0, int id) {
 	return l0.draw < id;
+}
+
+Evaluation::Evaluation() {
+}
+
+Evaluation::Evaluation(const Tech &tech, Layout &layout) {
+	evaluate(tech, layout);
+}
+
+Evaluation::~Evaluation() {
+}
+
+void Evaluation::init(const Tech &tech, Layout &layout) {
+	this->layout = &layout;
+	layers.clear();
+	incomplete.clear();
+	for (auto i = layout.layers.begin(); i != layout.layers.end(); i++) {
+		for (auto j = tech.paint[i->draw].out.begin(); j != tech.paint[i->draw].out.end(); j++) {
+			auto pos = incomplete.insert(pair<int, int>(*j, 0)).first;
+			pos->second++;
+		}
+	}
+}
+
+bool Evaluation::has(int idx) {
+	if (idx >= 0) {
+		for (int i = 0; i < (int)layout->layers.size(); i++) {
+			if (layout->layers[i].draw == idx) {
+				return true;
+			}
+		}
+	}
+	return (layers.find(idx) != layers.end());
+}
+
+Layer &Evaluation::at(int idx) {
+	if (idx >= 0) {
+		for (int i = 0; i < (int)layout->layers.size(); i++) {
+			if (layout->layers[i].draw == idx) {
+				return layout->layers[i];
+			}
+		}
+	}
+	return (layers.insert(pair<int, Layer>(idx, Layer(idx))).first)->second;
+}
+
+void Evaluation::evaluate(const Tech &tech, Layout &layout) {
+	init(tech, layout);
+
+	bool progress = true;
+	while (progress) {
+		progress = false;
+		for (auto i = incomplete.begin(); i != incomplete.end(); ) {
+			const Rule &rule = tech.rules[i->first];
+			const vector<int> &arg = rule.operands;
+
+			if (i->second != (int)rule.operands.size() or not rule.isOperator()) {
+				i++;
+				continue;
+			}
+
+			switch (rule.type) {
+			case Rule::NOT: at(i->first) = ~at(arg[0]); break;
+			case Rule::AND: at(i->first) = at(arg[0]) & at(arg[1]); break;
+			case Rule::OR:  at(i->first) = at(arg[0]) | at(arg[1]); break;
+			default: printf("%s:%d error: unsupported operation.\n", __FILE__, __LINE__);
+			}
+			
+			i = incomplete.erase(i);
+			progress = true;
+		}
+	}
 }
 
 Layout::Layout() {
@@ -558,21 +695,58 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 	return conflict;
 }
 
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, int l0Shift, vector<Layer> &l1, int l1Shift, int substrateMode, int routingMode) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode, int routingMode) {
+	Evaluation e0(tech, left);
+	Evaluation e1(tech, right);
+
 	bool conflict = false;
-	for (int i = 0; i < (int)l0.size();	i++) {
-		int l0Mode = (l0[i].isRouting(tech) ? routingMode : substrateMode);
-		if (l0Mode != Layout::IGNORE and not tech.paint[l0[i].draw].fill) {
-			for (int j = 0; j < (int)l1.size(); j++) {
-				int l1Mode = (l1[j].isRouting(tech) ? routingMode : substrateMode);
-				if (l1Mode != Layout::IGNORE and not tech.paint[l1[j].draw].fill) {
-					int spacing = tech.findSpacing(l0[i].draw, l1[j].draw);
-					if (spacing >= 0) {
-						bool newConflict = minOffset(offset, tech, axis, l0[i], l0Shift, l1[j], l1Shift, spacing, l0Mode == Layout::MERGENET and l1Mode == Layout::MERGENET);
+	auto i0 = e0.incomplete.begin();
+	auto i1 = e1.incomplete.begin();
+	printf("checking %d and %d rules\n", (int)e0.incomplete.size(), (int)e1.incomplete.size());
+	while (i0 != e0.incomplete.end() and i1 != e1.incomplete.end()) {
+		printf("%d %d\n", i0->first, i1->first);
+		if (i0->first < i1->first) {
+			i0++;
+		} else if (i1->first < i0->first) {
+			i1++;
+		} else {
+			const Rule &rule = tech.rules[flip(i0->first)];
+			printf("found rule %d=?%d\n", rule.type, Rule::SPACING);
+			if (rule.type == Rule::SPACING) {
+				printf("checking rule %d between %d and %d\n", i0->first, rule.operands[0], rule.operands[1]);
+				if (e0.has(rule.operands[0]) and e1.has(rule.operands[1])) {
+					Layer &l0 = e0.at(rule.operands[0]);
+					Layer &l1 = e1.at(rule.operands[1]);
+					
+					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
+					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
+					printf("found e0->0, e1->1: %d %d\n", leftMode, rightMode);
+
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and not l0.isFill(tech) and not l1.isFill(tech)) {
+						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
+						printf("checking layers: %d\n", newConflict);
+						conflict = conflict or newConflict;
+					}
+				}
+
+				if (e0.has(rule.operands[1]) and e1.has(rule.operands[0])) {
+					Layer &l0 = e0.at(rule.operands[1]);
+					Layer &l1 = e1.at(rule.operands[0]);
+					
+					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
+					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
+					printf("found e0->1, e1->0: %d %d\n", leftMode, rightMode);
+
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and not l0.isFill(tech) and not l1.isFill(tech)) {
+						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
+						printf("checking layers: %d\n", newConflict);
 						conflict = conflict or newConflict;
 					}
 				}
 			}
+
+			i0++;
+			i1++;
 		}
 	}
 	return conflict;
