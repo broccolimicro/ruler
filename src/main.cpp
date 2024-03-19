@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include "ruler/Tech.h"
+#include <ruler/Tech.h>
 
 using namespace std;
 

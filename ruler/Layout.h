@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <gdstk/gdstk.hpp>
 
 #include "vector.h"
@@ -23,13 +24,16 @@ struct Rect {
 	vec2i ll;
 	vec2i ur;
 
-	int operator[](int i) {
-		return (i&1) ? ur[i>>1] : ll[i>>1];
+	vec2i &operator[](int corner) {
+		return corner ? ur : ll;
 	}
 
 	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
 	bool merge(Rect r);
+	bool overlaps(Rect r);
 	bool hasLabel() const;
+	Rect &bound(vec2i rll, vec2i rur);
+	Rect &bound(Rect r);
 
 	gdstk::Polygon *emit(const Tech &tech, int layer) const;
 	gdstk::Label *emitLabel(const Tech &tech, const Layout &layout, int layer) const;
@@ -65,21 +69,20 @@ struct Layer {
 	// these are here for performance
 	bool dirty;
 	
-	enum {
-		FROM_H = 0,
-		TO_H = 1,
-		FROM_V = 2,
-		TO_V = 3
-	};
+	// indexed as [axis][fromTo]
+	array<array<vector<Bound>, 2>, 2> bound;
 
-	vector<Bound> bound[4];
+	bool isRouting(const Tech &tech);
+	bool isFill(const Tech &tech);
 
+	void clear();
 	void sync();
 
 	void push(Rect rect, bool doSync=false);
 	void push(vector<Rect> rects, bool doSync=false);
 	void erase(int index, bool doSync=false);
 
+	Rect bbox();
 	void merge(bool doSync=false);
 	
 	void emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const;
@@ -88,26 +91,59 @@ struct Layer {
 bool operator<(const Layer &l0, const Layer &l1);
 bool operator<(const Layer &l, int id);
 
+Layer operator&(const Layer &l0, const Layer &l1);
+Layer operator|(const Layer &l0, const Layer &l1);
+Layer operator~(const Layer &l);
+
+struct Evaluation {
+	Evaluation();
+	Evaluation(const Tech &tech, Layout &layout);
+	~Evaluation();
+
+	Layout *layout;
+	// negative index into Tech::rules -> geometry
+	map<int, Layer> layers;
+
+	// negative index into Tech::rules -> count of ready operands in layers
+	map<int, int> incomplete;
+
+	void init(const Tech &tech, Layout &layout);
+	bool has(int idx);
+	Layer &at(int idx);
+	void evaluate(const Tech &tech, Layout &layout);
+};
+
 struct Layout {
 	Layout();
 	~Layout();
+
+	enum {
+		DEFAULT = 0,
+		MERGENET = 1,
+		IGNORE = 2,
+	};
 
 	string name;
 	Rect box;
 	vector<string> nets;
 	vector<Layer> layers;
 	
-	void updateBox(vec2i ll, vec2i ur);
 	vector<Layer>::iterator findLayer(int draw, int layer=-1, int pin=-1);
-	void push(int layerID, Rect rect, bool doSync=false);
-	void push(int layerID, vector<Rect> rects, bool doSync=false);
+	void push(int layer, Rect rect, bool doSync=false);
+	void push(int layer, vector<Rect> rects, bool doSync=false);
+	void push(const Material &mat, Rect rect, bool doSync=false);
+	void push(const Material &mat, vector<Rect> rects, bool doSync=false);
 
+	Rect bbox();
 	void merge(bool doSync=false);
-	
+
+	void clear();
 	void emit(const Tech &tech, gdstk::Library &lib) const;
+
+	Evaluation eval(const Tech &tech);
 };
 
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, Layer &l1, int spacing=0);
-bool minOffset(int *offset, const Tech &tech, int axis, vector<Layer> &l0, vector<Layer> &l1);
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing=0, bool mergeNet=true);
+bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode=Layout::DEFAULT, int routingMode=Layout::DEFAULT);
 
 }
