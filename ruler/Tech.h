@@ -135,6 +135,7 @@ struct Tech {
 	int getSpacing(int l0, int l1) const;
 	int setSpacing(int l0, int l1, int value);
 
+	string print(int layer) const;
 	int findPaint(string name) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;

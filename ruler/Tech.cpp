@@ -378,58 +378,77 @@ Tech::Tech() {
 	paint.push_back(Paint("cfom.waffleDrop", 22, 24));
 	paint.push_back(Paint("cmm5.waffleDrop", 117, 4));
 
+	int diff = findPaint("diff.drawing");
+	int nsdm = findPaint("nsdm.drawing");
+	int psdm = findPaint("psdm.drawing");
+	int nwell = findPaint("nwell.drawing");
+	int hvtp = findPaint("hvtp.drawing");
+	int licon1 = findPaint("licon1.drawing");
+	int mcon = findPaint("mcon.drawing");
+	int via = findPaint("via.drawing");
+	int via2 = findPaint("via2.drawing");
+	int via3 = findPaint("via3.drawing");
+	int via4 = findPaint("via4.drawing");
+	int poly = findPaint("poly.drawing");
+	int li1 = findPaint("li1.drawing");
+	int met1 = findPaint("met1.drawing");
+	int met2 = findPaint("met2.drawing");
+	int met3 = findPaint("met3.drawing");
+	int met4 = findPaint("met4.drawing");
+	int met5 = findPaint("met5.drawing");
+
 	models.push_back(Model(Model::NMOS, "sky130_fd_pr__nfet_01v8", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
-	models.back().paint.push_back(Diffusion(findPaint("nsdm.drawing"), -1, -1, vec2i(25, 25)));
+	models.back().paint.push_back(Diffusion(diff, -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(nsdm, -1, -1, vec2i(25, 25)));
 	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
-	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, vec2i(25, 25)));
-	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, vec2i(36, 36)));
+	models.back().paint.push_back(Diffusion(diff, -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(psdm, -1, -1, vec2i(25, 25)));
+	models.back().paint.push_back(Diffusion(nwell, -1, -1, vec2i(36, 36)));
 	models.push_back(Model(Model::PMOS, "sky130_fd_pr__pfet_01v8_hvt", 26));
-	models.back().paint.push_back(Diffusion(findPaint("diff.drawing"), -1, -1, vec2i(50, 0)));
-	models.back().paint.push_back(Diffusion(findPaint("psdm.drawing"), -1, -1, vec2i(25, 25)));
-	models.back().paint.push_back(Diffusion(findPaint("hvtp.drawing"), -1, -1, vec2i(11, 11)));
-	models.back().paint.push_back(Diffusion(findPaint("nwell.drawing"), -1, -1, vec2i(36, 36)));
+	models.back().paint.push_back(Diffusion(diff, -1, -1, vec2i(50, 0)));
+	models.back().paint.push_back(Diffusion(psdm, -1, -1, vec2i(25, 25)));
+	models.back().paint.push_back(Diffusion(hvtp, -1, -1, vec2i(11, 11)));
+	models.back().paint.push_back(Diffusion(nwell, -1, -1, vec2i(36, 36)));
 
 
-	vias.push_back(Via(findPaint("licon1.drawing"), -1, -1, -1, 1, 8, 12, 0, 16));
-	vias.push_back(Via(findPaint("licon1.drawing"), -1, -1, -2, 1, 8, 12, 0, 16));
-	vias.push_back(Via(findPaint("licon1.drawing"), -1, -1, -3, 1, 8, 12, 0, 16));
+	vias.push_back(Via(licon1, -1, -1, -1, 1, 8, 12, 0, 16));
+	vias.push_back(Via(licon1, -1, -1, -2, 1, 8, 12, 0, 16));
+	vias.push_back(Via(licon1, -1, -1, -3, 1, 8, 12, 0, 16));
 
-	vias.push_back(Via(findPaint("licon1.drawing"), -1, -1, 0, 1, 10, 16, 0, 16));
-	vias.push_back(Via(findPaint("mcon.drawing"), -1, -1, 1, 2, 0, 0, 6, 12));
-	vias.push_back(Via(findPaint("via.drawing"), -1, -1, 2, 3, 11, 11, 11, 17));
-	vias.push_back(Via(findPaint("via2.drawing"), -1, -1, 3, 4, 8, 17, 13, 13));
-	vias.push_back(Via(findPaint("via3.drawing"), -1, -1, 4, 5, 12, 18, 13, 13));
-	vias.push_back(Via(findPaint("via4.drawing"), -1, -1, 5, 6, 38, 38, 62, 62));
+	vias.push_back(Via(licon1, -1, -1, 0, 1, 10, 16, 0, 16));
+	vias.push_back(Via(mcon, -1, -1, 1, 2, 0, 0, 6, 12));
+	vias.push_back(Via(via, -1, -1, 2, 3, 11, 11, 11, 17));
+	vias.push_back(Via(via2, -1, -1, 3, 4, 8, 17, 13, 13));
+	vias.push_back(Via(via3, -1, -1, 4, 5, 12, 18, 13, 13));
+	vias.push_back(Via(via4, -1, -1, 5, 6, 38, 38, 62, 62));
 
-	wires.push_back(Routing(findPaint("poly.drawing"), findPaint("poly.label"), findPaint("poly.pin")));
-	wires.push_back(Routing(findPaint("li1.drawing"), findPaint("li1.label"), findPaint("li1.pin")));
-	wires.push_back(Routing(findPaint("met1.drawing"), findPaint("met1.label"), findPaint("met1.pin")));
-	wires.push_back(Routing(findPaint("met2.drawing"), findPaint("met2.label"), findPaint("met2.pin")));
-	wires.push_back(Routing(findPaint("met3.drawing"), findPaint("met3.label"), findPaint("met3.pin")));
-	wires.push_back(Routing(findPaint("met4.drawing"), findPaint("met4.label"), findPaint("met4.pin")));
-	wires.push_back(Routing(findPaint("met5.drawing"), findPaint("met5.label"), findPaint("met5.pin")));
+	wires.push_back(Routing(poly, findPaint("poly.label"), findPaint("poly.pin")));
+	wires.push_back(Routing(li1, findPaint("li1.label"), findPaint("li1.pin")));
+	wires.push_back(Routing(met1, findPaint("met1.label"), findPaint("met1.pin")));
+	wires.push_back(Routing(met2, findPaint("met2.label"), findPaint("met2.pin")));
+	wires.push_back(Routing(met3, findPaint("met3.label"), findPaint("met3.pin")));
+	wires.push_back(Routing(met4, findPaint("met4.label"), findPaint("met4.pin")));
+	wires.push_back(Routing(met5, findPaint("met5.label"), findPaint("met5.pin")));
 
-	setSpacing(findPaint("diff.drawing"), findPaint("diff.drawing"), 54);
-	setSpacing(findPaint("hvtp.drawing"), findPaint("hvtp.drawing"), 76);
-	setSpacing(findPaint("poly.drawing"), findPaint("poly.drawing"), 42);
-	setSpacing(findPaint("licon1.drawing"), findPaint("licon1.drawing"), 34);
-	setSpacing(findPaint("li1.drawing"), findPaint("li1.drawing"), 34);
-	setSpacing(findPaint("mcon.drawing"), findPaint("mcon.drawing"), 38);
-	setSpacing(findPaint("met1.drawing"), findPaint("met1.drawing"), 28);
-	setSpacing(findPaint("via.drawing"), findPaint("via.drawing"), 34);
-	setSpacing(findPaint("met2.drawing"), findPaint("met2.drawing"), 28);
-	setSpacing(findPaint("via2.drawing"), findPaint("via2.drawing"), 40);
-	setSpacing(findPaint("met3.drawing"), findPaint("met3.drawing"), 60);
-	setSpacing(findPaint("via3.drawing"), findPaint("via3.drawing"), 40);
-	setSpacing(findPaint("met4.drawing"), findPaint("met4.drawing"), 60);
-	setSpacing(findPaint("via4.drawing"), findPaint("via4.drawing"), 160);
-	setSpacing(findPaint("met5.drawing"), findPaint("met5.drawing"), 320);
-	setSpacing(findPaint("poly.drawing"), findPaint("licon1.drawing"), 18);
-	//setSpacing(findPaint("diff.drawing"), findPaint("nwell.drawing"), 68);
-	//setSpacing(findPaint("poly.drawing"), findPaint("diff.drawing"), 38);
-	//setSpacing(findPaint("licon1.drawing"), findPaint("diff.drawing"), 38);
+	setSpacing(diff, diff, 54);
+	setSpacing(hvtp, hvtp, 76);
+	setSpacing(poly, poly, 42);
+	setSpacing(licon1, licon1, 34);
+	setSpacing(li1, li1, 34);
+	setSpacing(mcon, mcon, 38);
+	setSpacing(met1, met1, 28);
+	setSpacing(via, via, 34);
+	setSpacing(met2, met2, 28);
+	setSpacing(via2, via2, 40);
+	setSpacing(met3, met3, 60);
+	setSpacing(via3, via3, 40);
+	setSpacing(met4, met4, 60);
+	setSpacing(via4, via4, 160);
+	setSpacing(met5, met5, 320);
+	setSpacing(poly, licon1, 18);
+	setSpacing(setAnd(setNot(nwell), diff), nwell, 68);
+	setSpacing(setAnd(setNot(diff), poly), diff, 38);
+	setSpacing(setAnd(setNot(diff), licon1), diff, 38);
 
 	boundary = findPaint("areaid.sc.identifier");
 }
@@ -575,6 +594,23 @@ int Tech::setSpacing(int l0, int l1, int value) {
 	return result;
 }
 
+string Tech::print(int layer) const {
+	if (layer >= 0) {
+		return paint[layer].name;
+	}
+
+	const Rule &rule = rules[flip(layer)];
+	switch (rule.type) {
+	case Rule::NOT: return string("~") + print(rule.operands[0]);
+	case Rule::AND: return print(rule.operands[0]) + "&" + print(rule.operands[1]);
+	case Rule::OR:  return string("(") + print(rule.operands[0]) + "|" + print(rule.operands[1]) + ")";
+	case Rule::SPACING:  return print(rule.operands[0]) + "<->" + print(rule.operands[1]);
+	default: printf("%s:%d error: unsupported operation (rule[%d].type=%d).\n", __FILE__, __LINE__, flip(layer), rule.type);
+	}
+	return "";
+}
+
+
 int Tech::findPaint(string name) const {
 	for (int i = 0; i < (int)paint.size(); i++) {
 		if (paint[i].name == name) {
@@ -612,7 +648,5 @@ vector<int> Tech::findVias(int downLevel, int upLevel) const {
 	}
 	return result;
 }
-
-// TODO(edward.bingham) instead of manually computing spacing for different situations, we should pre-layout each transistor, contact, and wire, and then use the DRC rules directly on the geometry to compute spacing. This would ensure that every cell is guaranteed to be DRC error free.
 
 }

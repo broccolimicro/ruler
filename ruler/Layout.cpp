@@ -193,7 +193,16 @@ Layer operator&(Layer &l0, Layer &l1) {
 	for (int i = 0; i < (int)l0.geo.size(); i++) {
 		for (int j = 0; j < (int)l1.geo.size(); j++) {
 			if (l0.geo[i].overlaps(l1.geo[j])) {
-				result.push(Rect(-1, max(l0.geo[i].ll, l1.geo[j].ll), min(l0.geo[i].ur, l1.geo[j].ur)));
+				int net = -1;
+				if (l0.geo[i].net < 0 and l1.geo[j].net >= 0) {
+					net = l1.geo[j].net;
+				} else if (l0.geo[i].net >= 0 and l1.geo[j].net < 0) {
+					net = l0.geo[i].net;
+				} else if (l0.geo[i].net == l1.geo[j].net) {
+					net = l0.geo[i].net;
+				}
+
+				result.push(Rect(net, max(l0.geo[i].ll, l1.geo[j].ll), min(l0.geo[i].ur, l1.geo[j].ur)));
 			}
 		}
 	}
@@ -218,6 +227,7 @@ Layer operator~(Layer &l) {
 	int hi = std::numeric_limits<int>::max();
 
 	Layer result;
+	result.push(Rect(-1, vec2i(lo, lo), vec2i(hi, hi)));
 	for (int i = 0; i < (int)l.geo.size(); i++) {
 		Layer step;
 		step.push(Rect(-1, vec2i(l.geo[i].ur[0], lo), vec2i(hi, hi)));
@@ -442,6 +452,13 @@ void Evaluation::init(const Tech &tech, Layout &layout) {
 			pos->second++;
 		}
 	}
+
+	for (int i = 0; i < (int)tech.rules.size(); i++) {
+		if (tech.rules[i].type == Rule::NOT) {
+			auto pos = incomplete.insert(pair<int, int>(flip(i), 0)).first;
+			pos->second = 1;
+		}
+	}
 }
 
 bool Evaluation::has(int idx) {
@@ -473,7 +490,7 @@ void Evaluation::evaluate(const Tech &tech, Layout &layout) {
 	while (progress) {
 		progress = false;
 		for (auto i = incomplete.begin(); i != incomplete.end(); ) {
-			const Rule &rule = tech.rules[i->first];
+			const Rule &rule = tech.rules[flip(i->first)];
 			const vector<int> &arg = rule.operands;
 
 			if (i->second != (int)rule.operands.size() or not rule.isOperator()) {
@@ -485,7 +502,12 @@ void Evaluation::evaluate(const Tech &tech, Layout &layout) {
 			case Rule::NOT: at(i->first) = ~at(arg[0]); break;
 			case Rule::AND: at(i->first) = at(arg[0]) & at(arg[1]); break;
 			case Rule::OR:  at(i->first) = at(arg[0]) | at(arg[1]); break;
-			default: printf("%s:%d error: unsupported operation.\n", __FILE__, __LINE__);
+			default: printf("%s:%d error: unsupported operation (rule[%d].type=%d).\n", __FILE__, __LINE__, flip(i->first), rule.type);
+			}
+
+			for (auto j = rule.out.begin(); j != rule.out.end(); j++) {
+				auto pos = incomplete.insert(pair<int, int>(*j, 0)).first;
+				pos->second++;
 			}
 			
 			i = incomplete.erase(i);
@@ -699,32 +721,54 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 	Evaluation e0(tech, left);
 	Evaluation e1(tech, right);
 
+	printf("e0 layers:\n");
+	for (int i = 0; i < (int)e0.layout->layers.size(); i++) {
+		printf("%d: %s\n", e0.layout->layers[i].draw, tech.print(e0.layout->layers[i].draw).c_str());
+	}
+	for (auto i = e0.layers.begin(); i != e0.layers.end(); i++) {
+		printf("%d: %s\n", i->first, tech.print(i->first).c_str());
+	}
+	printf("e1 layers:\n");
+	for (int i = 0; i < (int)e1.layout->layers.size(); i++) {
+		printf("%d: %s\n", e1.layout->layers[i].draw, tech.print(e1.layout->layers[i].draw).c_str());
+	}
+	for (auto i = e1.layers.begin(); i != e1.layers.end(); i++) {
+		printf("%d: %s\n", i->first, tech.print(i->first).c_str());
+	}
+	printf("\n");
+
+
 	bool conflict = false;
 	auto i0 = e0.incomplete.begin();
 	auto i1 = e1.incomplete.begin();
 	printf("checking %d and %d rules\n", (int)e0.incomplete.size(), (int)e1.incomplete.size());
 	while (i0 != e0.incomplete.end() and i1 != e1.incomplete.end()) {
-		printf("%d %d\n", i0->first, i1->first);
 		if (i0->first < i1->first) {
+			printf("unmatched i0=%d: %s\n", i0->second, tech.print(i0->first).c_str());
 			i0++;
 		} else if (i1->first < i0->first) {
+			printf("unmatched i1=%d: %s\n", i1->second, tech.print(i1->first).c_str());
 			i1++;
 		} else {
+			// TODO(edward.bingham) if one of the rules is ~something, and we don't have something, then we still have ~something...
+			printf("matched rule %d i0=%d i1=%d: %s\n", i0->first, i0->second, i1->second, tech.print(i0->first).c_str());
 			const Rule &rule = tech.rules[flip(i0->first)];
-			printf("found rule %d=?%d\n", rule.type, Rule::SPACING);
 			if (rule.type == Rule::SPACING) {
-				printf("checking rule %d between %d and %d\n", i0->first, rule.operands[0], rule.operands[1]);
 				if (e0.has(rule.operands[0]) and e1.has(rule.operands[1])) {
 					Layer &l0 = e0.at(rule.operands[0]);
 					Layer &l1 = e1.at(rule.operands[1]);
 					
 					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
 					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
-					printf("found e0->0, e1->1: %d %d\n", leftMode, rightMode);
+					printf("found e0 <-> e1: %d %d\n", leftMode, rightMode);
 
-					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and not l0.isFill(tech) and not l1.isFill(tech)) {
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {
 						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
-						printf("checking layers: %d\n", newConflict);
+						if (newConflict) {
+							printf("found conflict: %d\n", *offset);
+						} else {
+							printf("no conflict\n");
+						}
 						conflict = conflict or newConflict;
 					}
 				}
@@ -735,11 +779,15 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 					
 					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
 					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
-					printf("found e0->1, e1->0: %d %d\n", leftMode, rightMode);
+					printf("found e1 <-> e0: %d %d\n", leftMode, rightMode);
 
-					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and not l0.isFill(tech) and not l1.isFill(tech)) {
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {
 						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
-						printf("checking layers: %d\n", newConflict);
+						if (newConflict) {
+							printf("found conflict: %d\n", *offset);
+						} else {
+							printf("no conflict\n");
+						}
 						conflict = conflict or newConflict;
 					}
 				}
