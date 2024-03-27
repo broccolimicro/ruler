@@ -190,6 +190,8 @@ Layer operator&(Layer &l0, Layer &l1) {
 	//l1.sync();
 
 	Layer result;
+	result.isRouting = l0.isRouting and l1.isRouting;
+	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
 	for (int i = 0; i < (int)l0.geo.size(); i++) {
 		for (int j = 0; j < (int)l1.geo.size(); j++) {
 			if (l0.geo[i].overlaps(l1.geo[j])) {
@@ -209,11 +211,59 @@ Layer operator&(Layer &l0, Layer &l1) {
 	return result;
 }
 
+Layer interact(Layer &l0, Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.draw = l0.draw;
+	result.label = l0.label;
+	result.pin = l0.pin;
+	result.isRouting = l0.isRouting;
+	result.isSubstrate = l0.isSubstrate;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				result.push(l0.geo[i]);
+				break;
+			}
+		}
+	}
+	return result;
+}
+
+Layer not_interact(Layer &l0, Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.draw = l0.draw;
+	result.label = l0.label;
+	result.pin = l0.pin;
+	result.isRouting = l0.isRouting;
+	result.isSubstrate = l0.isSubstrate;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		bool found = false;
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				found = true;
+				break;
+			}
+		}
+		if (not found) {
+			result.push(l0.geo[i]);
+		}
+	}
+	return result;
+}
+
 Layer operator|(Layer &l0, Layer &l1) {
 	//l0.sync();
 	//l1.sync();
 
 	Layer result;
+	result.isRouting = l0.isRouting and l1.isRouting;
+	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
 	result.push(l0.geo);
 	result.push(l1.geo);
 	result.merge(true);
@@ -227,6 +277,8 @@ Layer operator~(Layer &l) {
 	int hi = std::numeric_limits<int>::max();
 
 	Layer result;
+	result.isRouting = not l.isRouting;
+	result.isSubstrate = not l.isSubstrate;
 	result.push(Rect(-1, vec2i(lo, lo), vec2i(hi, hi)));
 	for (int i = 0; i < (int)l.geo.size(); i++) {
 		Layer step;
@@ -254,49 +306,25 @@ Bound::~Bound() {
 }
 
 Layer::Layer() {
-	draw = -1;
-	label = -1;
-	pin = -1;
+	draw = Layer::UNKNOWN;
+	label = Layer::UNKNOWN;
+	pin = Layer::UNKNOWN;
 	dirty = false;
+	isRouting = false;
+	isSubstrate = false;
 }
 
-Layer::Layer(int draw, int label, int pin) {
+Layer::Layer(const Tech &tech, int draw, int label, int pin) {
 	this->draw = draw;
 	this->label = label;
 	this->pin = pin;
 	this->dirty = false;
+
+	this->isRouting = tech.isRouting(draw);
+	this->isSubstrate = tech.isSubstrate(draw);
 }
 
 Layer::~Layer() {
-}
-
-bool Layer::isRouting(const Tech &tech) {
-	if (draw < 0) {
-		return false;
-	}
-
-	for (int i = 0; i < (int)tech.wires.size(); i++) {
-		if (draw == tech.wires[i].draw) {
-			return true;
-		}
-	}
-
-	// TODO(edward.bingham) there isn't any way to discern between routing licon
-	// and diffusion licon unless we record it separately as layer metadata in
-	// the layout. It's important not to count diffusion licon as routing to
-	// avoid unnecessary cycle breaks between transistor gate pins and contact
-	// pins in the transistor stacks. For now, we can discount all vias across
-	// the board, but this will need to be fixed down the road. Further, this
-	// whole distinction will need to be rethought when complex DRC rules are
-	// introduced.
-
-	//for (int i = 0; i < (int)tech.vias.size(); i++) {
-	//	if (tech.vias[i].downLevel >= 0 and tech.vias[i].upLevel >= 0 and draw == tech.vias[i].draw) {
-	//		return true;
-	//	}
-	//}
-
-	return false;
 }
 
 bool Layer::isFill(const Tech &tech) {
@@ -415,11 +443,11 @@ void Layer::merge(bool doSync) {
 	}
 }
 
-void Layer::emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const {
+void Layer::emit(const Layout &layout, gdstk::Cell *cell) const {
 	for (auto r = geo.begin(); r != geo.end(); r++) {
-		cell->polygon_array.append(r->emit(tech, draw));
+		cell->polygon_array.append(r->emit(*layout.tech, draw));
 		if (r->hasLabel()) {
-			cell->label_array.append(r->emitLabel(tech, layout, label));
+			cell->label_array.append(r->emitLabel(*layout.tech, layout, label));
 		}
 	}
 }
@@ -433,28 +461,29 @@ bool operator<(const Layer &l0, int id) {
 }
 
 Evaluation::Evaluation() {
+	this->layout = nullptr;
 }
 
-Evaluation::Evaluation(const Tech &tech, Layout &layout) {
-	evaluate(tech, layout);
+Evaluation::Evaluation(Layout &layout) {
+	this->layout = &layout;
+	evaluate();
 }
 
 Evaluation::~Evaluation() {
 }
 
-void Evaluation::init(const Tech &tech, Layout &layout) {
-	this->layout = &layout;
+void Evaluation::init() {
 	layers.clear();
 	incomplete.clear();
-	for (auto i = layout.layers.begin(); i != layout.layers.end(); i++) {
-		for (auto j = tech.paint[i->draw].out.begin(); j != tech.paint[i->draw].out.end(); j++) {
+	for (auto i = layout->layers.begin(); i != layout->layers.end(); i++) {
+		for (auto j = layout->tech->paint[i->draw].out.begin(); j != layout->tech->paint[i->draw].out.end(); j++) {
 			auto pos = incomplete.insert(pair<int, int>(*j, 0)).first;
 			pos->second++;
 		}
 	}
 
-	for (int i = 0; i < (int)tech.rules.size(); i++) {
-		if (tech.rules[i].type == Rule::NOT) {
+	for (int i = 0; i < (int)layout->tech->rules.size(); i++) {
+		if (layout->tech->rules[i].type == Rule::NOT) {
 			auto pos = incomplete.insert(pair<int, int>(flip(i), 0)).first;
 			pos->second = 1;
 		}
@@ -480,17 +509,17 @@ Layer &Evaluation::at(int idx) {
 			}
 		}
 	}
-	return (layers.insert(pair<int, Layer>(idx, Layer(idx))).first)->second;
+	return (layers.insert(pair<int, Layer>(idx, Layer(*(layout->tech), idx))).first)->second;
 }
 
-void Evaluation::evaluate(const Tech &tech, Layout &layout) {
-	init(tech, layout);
+void Evaluation::evaluate() {
+	init();
 
 	bool progress = true;
 	while (progress) {
 		progress = false;
 		for (auto i = incomplete.begin(); i != incomplete.end(); ) {
-			const Rule &rule = tech.rules[flip(i->first)];
+			const Rule &rule = layout->tech->rules[flip(i->first)];
 			const vector<int> &arg = rule.operands;
 
 			if (i->second != (int)rule.operands.size() or not rule.isOperator()) {
@@ -502,6 +531,8 @@ void Evaluation::evaluate(const Tech &tech, Layout &layout) {
 			case Rule::NOT: at(i->first) = ~at(arg[0]); break;
 			case Rule::AND: at(i->first) = at(arg[0]) & at(arg[1]); break;
 			case Rule::OR:  at(i->first) = at(arg[0]) | at(arg[1]); break;
+			case Rule::INTERACT: at(i->first) = interact(at(arg[0]), at(arg[1])); break;
+			case Rule::NOT_INTERACT: at(i->first) = not_interact(at(arg[0]), at(arg[1])); break;
 			default: printf("%s:%d error: unsupported operation (rule[%d].type=%d).\n", __FILE__, __LINE__, flip(i->first), rule.type);
 			}
 
@@ -516,8 +547,14 @@ void Evaluation::evaluate(const Tech &tech, Layout &layout) {
 	}
 }
 
-Layout::Layout() {
+/*Layout::Layout() {
+	tech = nullptr;
 	box = Rect();
+}*/
+
+Layout::Layout(const Tech &tech) {
+	this->tech = &tech;
+	this->box = Rect();
 }
 
 Layout::~Layout() {
@@ -526,7 +563,7 @@ Layout::~Layout() {
 vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {
 	auto layer = lower_bound(layers.begin(), layers.end(), draw);
 	if (layer == layers.end() or layer->draw != draw) {
-		layer = layers.insert(layer, Layer(draw, label, pin));
+		layer = layers.insert(layer, Layer(*tech, draw, label, pin));
 	}
 	if (layer->draw < 0) {
 		layer->draw = draw;
@@ -582,11 +619,11 @@ void Layout::clear() {
 	nets.clear();
 }
 
-void Layout::emit(const Tech &tech, gdstk::Library &lib) const {
+void Layout::emit(gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->emit(tech, *this, cell);
+		layer->emit(*this, cell);
 	}
 
 	lib.cell_array.append(cell);
@@ -718,8 +755,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 }
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode, int routingMode) {
-	Evaluation e0(tech, left);
-	Evaluation e1(tech, right);
+	Evaluation e0(left);
+	Evaluation e1(right);
 
 	printf("e0 layers:\n");
 	for (int i = 0; i < (int)e0.layout->layers.size(); i++) {
@@ -757,9 +794,9 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 				if (e0.has(rule.operands[0]) and e1.has(rule.operands[1])) {
 					Layer &l0 = e0.at(rule.operands[0]);
 					Layer &l1 = e1.at(rule.operands[1]);
-					
-					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
-					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
+				
+					int leftMode = (l0.isRouting ? routingMode : (l0.isSubstrate ? substrateMode : Layout::DEFAULT));
+					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
 					printf("found e0 <-> e1: %d %d\n", leftMode, rightMode);
 
 					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {
@@ -773,12 +810,12 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 					}
 				}
 
-				if (e0.has(rule.operands[1]) and e1.has(rule.operands[0])) {
+				if (rule.operands[0] != rule.operands[1] and e0.has(rule.operands[1]) and e1.has(rule.operands[0])) {
 					Layer &l0 = e0.at(rule.operands[1]);
 					Layer &l1 = e1.at(rule.operands[0]);
 					
-					int leftMode = (l0.isRouting(tech) ? routingMode : substrateMode);
-					int rightMode = (l1.isRouting(tech) ? routingMode : substrateMode);
+					int leftMode = (l0.isRouting ? routingMode : (l0.isSubstrate ? substrateMode : Layout::DEFAULT));
+					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
 					printf("found e1 <-> e0: %d %d\n", leftMode, rightMode);
 
 					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {

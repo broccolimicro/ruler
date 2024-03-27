@@ -56,8 +56,12 @@ bool operator<(const Bound &b, int p);
 
 struct Layer {
 	Layer();
-	Layer(int draw, int label = -1, int pin = -1);
+	Layer(const Tech &tech, int draw, int label = -1, int pin = -1);
 	~Layer();
+
+	enum {
+		UNKNOWN = -1,
+	};
 
 	// this is the source of truth
 	// index into layer stack defined in Tech
@@ -65,14 +69,22 @@ struct Layer {
 	int label;
 	int pin;
 	vector<Rect> geo;
+
+	// flags to help pull apart spacing rules for
+	// cell construction
+	bool isRouting;
+	bool isSubstrate;
 	
-	// these are here for performance
+	/////////////////////////////////////////////
+	// these optimize performance in the minOffset
+	// computation
 	bool dirty;
 	
 	// indexed as [axis][fromTo]
 	array<array<vector<Bound>, 2>, 2> bound;
 
-	bool isRouting(const Tech &tech);
+	////////////////////////////////////////////
+
 	bool isFill(const Tech &tech);
 
 	void clear();
@@ -85,19 +97,21 @@ struct Layer {
 	Rect bbox();
 	void merge(bool doSync=false);
 	
-	void emit(const Tech &tech, const Layout &layout, gdstk::Cell *cell) const;
+	void emit(const Layout &layout, gdstk::Cell *cell) const;
 };
 
 bool operator<(const Layer &l0, const Layer &l1);
 bool operator<(const Layer &l, int id);
 
 Layer operator&(const Layer &l0, const Layer &l1);
+Layer interact(const Layer &l0, const Layer &l1);
+Layer not_interact(const Layer &l0, const Layer &l1);
 Layer operator|(const Layer &l0, const Layer &l1);
 Layer operator~(const Layer &l);
 
 struct Evaluation {
 	Evaluation();
-	Evaluation(const Tech &tech, Layout &layout);
+	Evaluation(Layout &layout);
 	~Evaluation();
 
 	Layout *layout;
@@ -107,14 +121,15 @@ struct Evaluation {
 	// negative index into Tech::rules -> count of ready operands in layers
 	map<int, int> incomplete;
 
-	void init(const Tech &tech, Layout &layout);
+	void init();
 	bool has(int idx);
 	Layer &at(int idx);
-	void evaluate(const Tech &tech, Layout &layout);
+	void evaluate();
 };
 
 struct Layout {
-	Layout();
+	//Layout();
+	Layout(const Tech &tech);
 	~Layout();
 
 	enum {
@@ -122,6 +137,8 @@ struct Layout {
 		MERGENET = 1,
 		IGNORE = 2,
 	};
+
+	const Tech *tech;
 
 	string name;
 	Rect box;
@@ -138,9 +155,7 @@ struct Layout {
 	void merge(bool doSync=false);
 
 	void clear();
-	void emit(const Tech &tech, gdstk::Library &lib) const;
-
-	Evaluation eval(const Tech &tech);
+	void emit(gdstk::Library &lib) const;
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing=0, bool mergeNet=true);

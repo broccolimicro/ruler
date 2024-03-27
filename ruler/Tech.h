@@ -95,7 +95,9 @@ struct Rule {
 		NOT = 0,
 		AND = 1,
 		OR = 2,
-		SPACING = 3,
+		INTERACT = 3,
+		NOT_INTERACT = 4,
+		SPACING = 5,
 	};
 
 	int type;
@@ -132,6 +134,11 @@ struct Tech {
 	int setAnd(int l0, int l1);
 	int getNot(int l) const;
 	int setNot(int l);
+	int getInteract(int l0, int l1) const;
+	int setInteract(int l0, int l1);
+	int getNotInteract(int l0, int l1) const;
+	int setNotInteract(int l0, int l1);
+
 	int getSpacing(int l0, int l1) const;
 	int setSpacing(int l0, int l1, int value);
 
@@ -139,6 +146,9 @@ struct Tech {
 	int findPaint(string name) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;
+
+	bool isRouting(int layer) const;
+	bool isSubstrate(int layer) const;
 };
 
 }

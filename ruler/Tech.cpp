@@ -378,6 +378,7 @@ Tech::Tech() {
 	paint.push_back(Paint("cfom.waffleDrop", 22, 24));
 	paint.push_back(Paint("cmm5.waffleDrop", 117, 4));
 
+	int tap = findPaint("tap.drawing");
 	int diff = findPaint("diff.drawing");
 	int nsdm = findPaint("nsdm.drawing");
 	int psdm = findPaint("psdm.drawing");
@@ -396,6 +397,7 @@ Tech::Tech() {
 	int met3 = findPaint("met3.drawing");
 	int met4 = findPaint("met4.drawing");
 	int met5 = findPaint("met5.drawing");
+	int uhvi = findPaint("uhvi.drawing");
 
 	models.push_back(Model(Model::NMOS, "sky130_fd_pr__nfet_01v8", 26));
 	models.back().paint.push_back(Diffusion(diff, -1, -1, vec2i(50, 0)));
@@ -446,9 +448,9 @@ Tech::Tech() {
 	setSpacing(via4, via4, 160);
 	setSpacing(met5, met5, 320);
 	setSpacing(poly, licon1, 18);
-	setSpacing(setAnd(setNot(nwell), diff), nwell, 68);
-	setSpacing(setAnd(setNot(diff), poly), diff, 38);
-	setSpacing(setAnd(setNot(diff), licon1), diff, 38);
+	setSpacing(setAnd(setAnd(diff, setNot(uhvi)), nsdm), nwell, 68);
+	setSpacing(setAnd(licon1, poly), setOr(diff, tap), 38);
+	setSpacing(setAnd(poly, setNot(diff)), diff, 15);
 
 	boundary = findPaint("areaid.sc.identifier");
 }
@@ -555,6 +557,74 @@ int Tech::setNot(int l) {
 	return result;
 }
 
+int Tech::getInteract(int l0, int l1) const {
+	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
+	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::INTERACT and (int)rules[i].operands.size() == 2 and rules[i].operands[0] == l0 and rules[i].operands[1] == l1) {
+			return flip(i);
+		}
+	}
+	return std::numeric_limits<int>::max();
+}
+
+int Tech::setInteract(int l0, int l1) {
+	int result = getInteract(l0, l1);
+	if (result < 0) {
+		return result;
+	}
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::INTERACT, {l0, l1}));
+	if (l0 >= 0) {
+		paint[l0].out.push_back(result);
+	} else {
+		rules[flip(l0)].out.push_back(result);
+	}
+	if (l1 >= 0) {
+		paint[l1].out.push_back(result);
+	} else {
+		rules[flip(l1)].out.push_back(result);
+	}
+	return result;
+}
+
+int Tech::getNotInteract(int l0, int l1) const {
+	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
+		return std::numeric_limits<int>::max();
+	}
+
+	for (int i = 0; i < (int)rules.size(); i++) {
+		if (rules[i].type == Rule::NOT_INTERACT and (int)rules[i].operands.size() == 2 and rules[i].operands[0] == l0 and rules[i].operands[1] == l1) {
+			return flip(i);
+		}
+	}
+	return std::numeric_limits<int>::max();
+}
+
+int Tech::setNotInteract(int l0, int l1) {
+	int result = getNotInteract(l0, l1);
+	if (result < 0) {
+		return result;
+	}
+
+	result = flip((int)rules.size());
+	rules.push_back(Rule(Rule::NOT_INTERACT, {l0, l1}));
+	if (l0 >= 0) {
+		paint[l0].out.push_back(result);
+	} else {
+		rules[flip(l0)].out.push_back(result);
+	}
+	if (l1 >= 0) {
+		paint[l1].out.push_back(result);
+	} else {
+		rules[flip(l1)].out.push_back(result);
+	}
+	return result;
+}
+
 int Tech::getSpacing(int l0, int l1) const {
 	if (l0 >= (int)paint.size() or l1 >= (int)paint.size()) {
 		return std::numeric_limits<int>::max();
@@ -604,6 +674,8 @@ string Tech::print(int layer) const {
 	case Rule::NOT: return string("~") + print(rule.operands[0]);
 	case Rule::AND: return print(rule.operands[0]) + "&" + print(rule.operands[1]);
 	case Rule::OR:  return string("(") + print(rule.operands[0]) + "|" + print(rule.operands[1]) + ")";
+	case Rule::INTERACT: return "interact(" + print(rule.operands[0]) + "," + print(rule.operands[1]) + ")";
+	case Rule::NOT_INTERACT: return "not_interact(" + print(rule.operands[0]) + "," + print(rule.operands[1]) + ")";
 	case Rule::SPACING:  return print(rule.operands[0]) + "<->" + print(rule.operands[1]);
 	default: printf("%s:%d error: unsupported operation (rule[%d].type=%d).\n", __FILE__, __LINE__, flip(layer), rule.type);
 	}
@@ -648,5 +720,65 @@ vector<int> Tech::findVias(int downLevel, int upLevel) const {
 	}
 	return result;
 }
+
+bool Tech::isRouting(int layer) const {
+	for (auto wire = wires.begin(); wire != wires.end(); wire++) {
+		if (layer == wire->draw) {
+			return true;
+		}
+	}
+
+	// There isn't any way to discern between routing licon
+	// and diffusion licon unless we record it separately as layer metadata in
+	// the layout. It's important not to count diffusion licon as routing to
+	// avoid unnecessary cycle breaks between transistor gate pins and contact
+	// pins in the transistor stacks. For now, we can discount all vias across
+	// the board, but this will need to be fixed down the road. Further, this
+	// whole distinction will need to be rethought when complex DRC rules are
+	// introduced.
+
+	/*for (auto via = vias.begin(); via != vias.end(); via++) {
+		if ((via->downLevel < 0 or via->upLevel < 0) and layer == via->draw) {
+			return false;
+		}
+	}*/
+
+	for (auto via = vias.begin(); via != vias.end(); via++) {
+		if (/*via->downLevel >= 0 and via->upLevel >= 0 and */layer == via->draw) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Tech::isSubstrate(int layer) const {
+	for (auto model = models.begin(); model != models.end(); model++) {
+		for (auto diff = model->paint.begin(); diff != model->paint.end(); diff++) {
+			if (layer == diff->draw) {
+				return true;
+			}
+		}
+	}
+
+	// There isn't any way to discern between routing licon
+	// and diffusion licon unless we record it separately as layer metadata in
+	// the layout. It's important not to count diffusion licon as routing to
+	// avoid unnecessary cycle breaks between transistor gate pins and contact
+	// pins in the transistor stacks. For now, we can discount all vias across
+	// the board, but this will need to be fixed down the road. Further, this
+	// whole distinction will need to be rethought when complex DRC rules are
+	// introduced.
+
+	//for (auto via = vias.begin(); via != vias.end(); via++) {
+	//	if ((via->downLevel < 0 or via->upLevel < 0) and layer == via->draw) {
+	//		return true;
+	//	}
+	//}
+
+	return false;
+}
+
+
 
 }
