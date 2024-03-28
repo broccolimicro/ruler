@@ -762,7 +762,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 	Evaluation e0(left);
 	Evaluation e1(right);
 
-	printf("e0 layers:\n");
+	/*printf("e0 layers:\n");
 	for (int i = 0; i < (int)e0.layout->layers.size(); i++) {
 		printf("%d: %s\n", e0.layout->layers[i].draw, tech.print(e0.layout->layers[i].draw).c_str());
 	}
@@ -776,22 +776,22 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 	for (auto i = e1.layers.begin(); i != e1.layers.end(); i++) {
 		printf("%d: %s\n", i->first, tech.print(i->first).c_str());
 	}
-	printf("\n");
+	printf("\n");*/
 
 
 	bool conflict = false;
 	auto i0 = e0.incomplete.begin();
 	auto i1 = e1.incomplete.begin();
-	printf("checking %d and %d rules\n", (int)e0.incomplete.size(), (int)e1.incomplete.size());
+	//printf("checking %d and %d rules\n", (int)e0.incomplete.size(), (int)e1.incomplete.size());
 	while (i0 != e0.incomplete.end() and i1 != e1.incomplete.end()) {
 		if (i0->first < i1->first) {
-			printf("unmatched i0=%d: %s\n", i0->second, tech.print(i0->first).c_str());
+			//printf("unmatched i0=%d: %s\n", i0->second, tech.print(i0->first).c_str());
 			i0++;
 		} else if (i1->first < i0->first) {
-			printf("unmatched i1=%d: %s\n", i1->second, tech.print(i1->first).c_str());
+			//printf("unmatched i1=%d: %s\n", i1->second, tech.print(i1->first).c_str());
 			i1++;
 		} else {
-			printf("matched rule %d i0=%d i1=%d: %s\n", i0->first, i0->second, i1->second, tech.print(i0->first).c_str());
+			//printf("matched rule %d i0=%d i1=%d: %s\n", i0->first, i0->second, i1->second, tech.print(i0->first).c_str());
 			const Rule &rule = tech.rules[flip(i0->first)];
 
 			vec2i spacing(rule.params[0], rule.params[0]);
@@ -816,15 +816,15 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 				
 					int leftMode = (l0.isRouting ? routingMode : (l0.isSubstrate ? substrateMode : Layout::DEFAULT));
 					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
-					printf("found e0 <-> e1: %d %d\n", leftMode, rightMode);
+					//printf("found e0 <-> e1: %d %d\n", leftMode, rightMode);
 
 					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and (not l0.isFill(tech) or not l1.isFill(tech))) {
 						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, spacing, leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
-						if (newConflict) {
+						/*if (newConflict) {
 							printf("found conflict: %d\n", *offset);
 						} else {
 							printf("no conflict\n");
-						}
+						}*/
 						conflict = conflict or newConflict;
 					}
 				}
@@ -835,15 +835,15 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 					
 					int leftMode = (l0.isRouting ? routingMode : (l0.isSubstrate ? substrateMode : Layout::DEFAULT));
 					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
-					printf("found e1 <-> e0: %d %d\n", leftMode, rightMode);
+					//printf("found e1 <-> e0: %d %d\n", leftMode, rightMode);
 
 					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and (not l0.isFill(tech) or not l1.isFill(tech))) {
 						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, spacing, leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
-						if (newConflict) {
+						/*if (newConflict) {
 							printf("found conflict: %d\n", *offset);
 						} else {
 							printf("no conflict\n");
-						}
+						}*/
 						conflict = conflict or newConflict;
 					}
 				}
