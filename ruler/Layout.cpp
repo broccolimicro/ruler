@@ -472,22 +472,26 @@ Evaluation::Evaluation(Layout &layout) {
 Evaluation::~Evaluation() {
 }
 
-void Evaluation::init() {
-	layers.clear();
-	incomplete.clear();
-	for (auto i = layout->layers.begin(); i != layout->layers.end(); i++) {
-		for (auto j = layout->tech->paint[i->draw].out.begin(); j != layout->tech->paint[i->draw].out.end(); j++) {
+void Evaluation::init() { layers.clear(); incomplete.clear();
+	// Do the stupid thing first.
+
+	// TODO(edward.bingham) Really, we should identify all of the DRC rules that
+	// could possibly be enabled as a result of the paint we have in this layout,
+	// and the ORed rules and the NOT rules. For now we're just starting by
+	// assuming we have every layer of paint possible in this layout.
+	for (auto paint = layout->tech->paint.begin(); paint != layout->tech->paint.end(); paint++) {
+		for (auto j = paint->out.begin(); j != paint->out.end(); j++) {
 			auto pos = incomplete.insert(pair<int, int>(*j, 0)).first;
 			pos->second++;
 		}
 	}
 
-	for (int i = 0; i < (int)layout->tech->rules.size(); i++) {
-		if (layout->tech->rules[i].type == Rule::NOT) {
-			auto pos = incomplete.insert(pair<int, int>(flip(i), 0)).first;
-			pos->second = 1;
+	/*for (auto i = layout->layers.begin(); i != layout->layers.end(); i++) {
+		for (auto j = layout->tech->paint[i->draw].out.begin(); j != layout->tech->paint[i->draw].out.end(); j++) {
+			auto pos = incomplete.insert(pair<int, int>(*j, 0)).first;
+			pos->second++;
 		}
-	}
+	}*/
 }
 
 bool Evaluation::has(int idx) {
@@ -656,7 +660,7 @@ bool operator<(const StackElem &e0, const StackElem &e1) {
 // along axis at which l0 and l1 abut and save into offset. Require spacing on
 // the opposite axis for non-intersection (default is 0). Return false if the two geometries
 // will never intersect.
-bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, int spacing, bool mergeNet) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, vec2i spacing, bool mergeNet) {
 	if (l0.dirty) {
 		l0.sync();
 	}
@@ -684,8 +688,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 				int shift = layer ? l1Shift : l0Shift;
 
 				if (boundIdx < (int)bounds.size()) {
-					int value = bounds[boundIdx].pos + shift + (2*fromTo - 1)*spacing/2;
-					if (minLayer < 0 or value < minValue) {
+					int value = bounds[boundIdx].pos + shift + (2*fromTo - 1)*spacing[1-axis]/2;
+					if (minLayer < 0 or value < minValue or (value == minValue and minFromTo < fromTo)) {
 						minValue = value;
 						minLayer = layer;
 						minFromTo = fromTo;
@@ -725,7 +729,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 				// from layer 0 to layer 1
 				for (int i = 0; i < (int)stack[1].size(); i++) {
 					if (l0.draw != l1.draw or stack[1][i].net != elem.net or not mergeNet) {
-						int diff = elem.pos + spacing - stack[1][i].pos;
+						int diff = elem.pos + spacing[axis] - stack[1][i].pos;
 						if (diff > *offset) {
 							*offset = diff;
 							conflict = true;
@@ -737,7 +741,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 				// from layer 1 to layer 0
 				for (int i = (int)stack[0].size()-1; i >= 0; i--) {
 					if (l0.draw != l1.draw or stack[0][i].net != elem.net or not mergeNet) {
-						int diff = stack[0][i].pos + spacing - elem.pos;
+						int diff = stack[0][i].pos + spacing[axis] - elem.pos;
 						if (diff > *offset) {
 							*offset = diff;
 							conflict = true;
@@ -754,7 +758,7 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 	return conflict;
 }
 
-bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode, int routingMode) {
+bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode, int routingMode, bool horizSpacing) {
 	Evaluation e0(left);
 	Evaluation e1(right);
 
@@ -787,9 +791,24 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 			printf("unmatched i1=%d: %s\n", i1->second, tech.print(i1->first).c_str());
 			i1++;
 		} else {
-			// TODO(edward.bingham) if one of the rules is ~something, and we don't have something, then we still have ~something...
 			printf("matched rule %d i0=%d i1=%d: %s\n", i0->first, i0->second, i1->second, tech.print(i0->first).c_str());
 			const Rule &rule = tech.rules[flip(i0->first)];
+
+			vec2i spacing(rule.params[0], rule.params[0]);
+
+			// TODO(edward.bingham) This is a hack. Really, we need to understand a
+			// more complicated relationship between additive and subtractive
+			// expressions in DRC spacing rules, then apply the subtractive piece of
+			// the expression on one side to the addive piece on the other to
+			// understand whether that additive part actually represents a potential
+			// spacing violation. Realistically, this is only affecting transistor
+			// spacing on the stack, and so we can just turn off the horizontal
+			// spacing rules to prevent the problematic conflicts in those spacing
+			// rules. See pages 201-204 of notes
+			if (not horizSpacing) {
+				spacing[1-axis] = 0;
+			}
+
 			if (rule.type == Rule::SPACING) {
 				if (e0.has(rule.operands[0]) and e1.has(rule.operands[1])) {
 					Layer &l0 = e0.at(rule.operands[0]);
@@ -799,8 +818,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
 					printf("found e0 <-> e1: %d %d\n", leftMode, rightMode);
 
-					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {
-						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and (not l0.isFill(tech) or not l1.isFill(tech))) {
+						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, spacing, leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
 						if (newConflict) {
 							printf("found conflict: %d\n", *offset);
 						} else {
@@ -818,8 +837,8 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 					int rightMode = (l1.isRouting ? routingMode : (l1.isSubstrate ? substrateMode : Layout::DEFAULT));
 					printf("found e1 <-> e0: %d %d\n", leftMode, rightMode);
 
-					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE) {// and (not l0.isFill(tech) or not l1.isFill(tech))) {
-						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, rule.params[0], leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
+					if (leftMode != Layout::IGNORE and rightMode != Layout::IGNORE and (not l0.isFill(tech) or not l1.isFill(tech))) {
+						bool newConflict = minOffset(offset, tech, axis, l0, leftShift, l1, rightShift, spacing, leftMode == Layout::MERGENET and rightMode == Layout::MERGENET);
 						if (newConflict) {
 							printf("found conflict: %d\n", *offset);
 						} else {
