@@ -157,11 +157,11 @@ bool Rect::hasLabel() const {
 	return net >= 0;
 }
 
-gdstk::Polygon *Rect::emit(const Tech &tech, int layer) const {
+gdstk::Polygon *Rect::emitGDS(const Tech &tech, int layer) const {
 	return new gdstk::Polygon(gdstk::rectangle(gdstk::Vec2{(double)ll[0], (double)ll[1]}, gdstk::Vec2{(double)ur[0], (double)ur[1]}, gdstk::make_tag(tech.paint[layer].major, tech.paint[layer].minor)));
 }
 
-gdstk::Label *Rect::emitLabel(const Tech &tech, const Layout &layout, int layer) const {
+gdstk::Label *Rect::emitGDSLabel(const Tech &tech, const Layout &layout, int layer) const {
 	if (net < 0) {
 		return nullptr;
 	}
@@ -171,6 +171,10 @@ gdstk::Label *Rect::emitLabel(const Tech &tech, const Layout &layout, int layer)
 		.origin = gdstk::Vec2{(double)((ll[0] + ur[0])/2), (double)((ll[1]+ur[1])/2)},
 		.magnification = 1,
 	};
+}
+
+void Rect::emitRect(const Tech &tech, const Layout &layout, int layer, FILE *fptr) {
+	fprintf(fptr, "rect %s %s %d %d %d %d\n", net < 0 ? "#" : layout.nets[net].c_str(), tech.paint[layer].name.c_str(), ll[0], ll[1], ur[0], ur[1]);
 }
 
 bool operator<(const Bound &b0, const Bound &b1) {
@@ -443,14 +447,21 @@ void Layer::merge(bool doSync) {
 	}
 }
 
-void Layer::emit(const Layout &layout, gdstk::Cell *cell) const {
+void Layer::emitGDS(const Layout &layout, gdstk::Cell *cell) const {
 	for (auto r = geo.begin(); r != geo.end(); r++) {
-		cell->polygon_array.append(r->emit(*layout.tech, draw));
+		cell->polygon_array.append(r->emitGDS(*layout.tech, draw));
 		if (r->hasLabel()) {
-			cell->label_array.append(r->emitLabel(*layout.tech, layout, label));
+			cell->label_array.append(r->emitGDSLabel(*layout.tech, layout, label));
 		}
 	}
 }
+
+void Layer::emitRect(const Layout &layout, FILE *fptr) {
+	for (auto r = geo.begin(); r != geo.end(); r++) {
+		r->emitRect(*layout.tech, layout, draw, fptr);
+	}
+}
+
 
 bool operator<(const Layer &l0, const Layer &l1) {
 	return l0.draw < l1.draw;
@@ -623,14 +634,22 @@ void Layout::clear() {
 	nets.clear();
 }
 
-void Layout::emit(gdstk::Library &lib) const {
+void Layout::emitGDS(gdstk::Library &lib) const {
 	gdstk::Cell *cell = new gdstk::Cell();
 	cell->init(name.c_str());
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->emit(*this, cell);
+		layer->emitGDS(*this, cell);
 	}
 
 	lib.cell_array.append(cell);
+}
+
+void Layout::emitRect(FILE *fptr) {
+	Rect bound = bbox();
+	fprintf(fptr, "bbox %d %d %d %d\n", bound.ll[0], bound.ll[1], bound.ur[0], bound.ur[1]);
+	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
+		layer->emitRect(*this, fptr);
+	}
 }
 
 struct StackElem {

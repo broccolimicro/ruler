@@ -35,8 +35,9 @@ struct Rect {
 	Rect &bound(vec2i rll, vec2i rur);
 	Rect &bound(Rect r);
 
-	gdstk::Polygon *emit(const Tech &tech, int layer) const;
-	gdstk::Label *emitLabel(const Tech &tech, const Layout &layout, int layer) const;
+	gdstk::Polygon *emitGDS(const Tech &tech, int layer) const;
+	gdstk::Label *emitGDSLabel(const Tech &tech, const Layout &layout, int layer) const;
+	void emitRect(const Tech &tech, const Layout &layout, int layer, FILE *fptr);
 };
 
 // is this bound compared along the x or y boundary?
@@ -97,7 +98,8 @@ struct Layer {
 	Rect bbox();
 	void merge(bool doSync=false);
 	
-	void emit(const Layout &layout, gdstk::Cell *cell) const;
+	void emitGDS(const Layout &layout, gdstk::Cell *cell) const;
+	void emitRect(const Layout &layout, FILE *fptr);
 };
 
 bool operator<(const Layer &l0, const Layer &l1);
@@ -155,7 +157,8 @@ struct Layout {
 	void merge(bool doSync=false);
 
 	void clear();
-	void emit(gdstk::Library &lib) const;
+	void emitGDS(gdstk::Library &lib) const;
+	void emitRect(FILE *fptr);
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, vec2i spacing=vec2i(0,0), bool mergeNet=true);
