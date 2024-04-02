@@ -645,6 +645,10 @@ void Layout::emitGDS(gdstk::Library &lib) const {
 }
 
 void Layout::emitRect(FILE *fptr) {
+	if (fptr == nullptr) {
+		return;
+	}
+
 	Rect bound = bbox();
 	fprintf(fptr, "bbox %d %d %d %d\n", bound.ll[0], bound.ll[1], bound.ur[0], bound.ur[1]);
 	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
