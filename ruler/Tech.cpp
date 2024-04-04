@@ -110,6 +110,7 @@ bool Rule::isOperator() const {
 }
 
 Tech::Tech() {
+	boundary = -1;
 }
 
 Tech::~Tech() {
