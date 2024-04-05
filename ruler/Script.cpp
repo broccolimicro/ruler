@@ -3,6 +3,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include <wordexp.h>
+
 namespace ruler {
 
 Tech *tech;
@@ -209,30 +211,59 @@ static PyObject* PyInit_floret()
 bool loadTech(Tech &dst, string path) {
 	tech = &dst;
 
-	wchar_t *program = Py_DecodeLocale(path.c_str(), NULL);
-	if (program == NULL) {
-		fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
-		exit(1);
+	PyConfig config;
+	PyConfig_InitPythonConfig(&config);
+
+	wordexp_t args;
+	if (wordexp(path.c_str(), &args, WRDE_APPEND) != 0) {
+		return false;
 	}
-	Py_SetProgramName(program);
+
+	int argc = args.we_wordc + 1;
+	char **argv = new char*[argc];
+	argv[0] = args.we_wordv[0];
+	for (int i = 0; i < (int)args.we_wordc; i++) {
+		argv[i+1] = args.we_wordv[i];
+	}
+
+	PyStatus status = PyConfig_SetBytesArgv(&config, argc, argv);
+	if (PyStatus_Exception(status)) {
+		wordfree(&args);
+		delete [] argv;
+		tech = nullptr;
+		PyConfig_Clear(&config);
+		if (not PyStatus_IsExit(status)) {
+			Py_ExitStatusException(status);
+		}
+		return false;
+	}
 
 	PyImport_AppendInittab("floret", &PyInit_floret);
+	status = Py_InitializeFromConfig(&config);
+	if (PyStatus_Exception(status)) {
+		wordfree(&args);
+		delete [] argv;
+		tech = nullptr;
+		PyConfig_Clear(&config);
+		if (not PyStatus_IsExit(status)) {
+			Py_ExitStatusException(status);
+		}
+		return false;
+	}
+	PyConfig_Clear(&config);
 
-	Py_Initialize();
-	FILE *fptr = fopen(path.c_str(), "r");
-	if (fptr == nullptr) {
-		tech = nullptr;
-		return false;
+	bool success = true;
+	FILE *fptr = fopen(args.we_wordv[0], "r");
+	if (fptr != nullptr) {
+		PyRun_SimpleFile(fptr, args.we_wordv[0]);
+		fclose(fptr);
+		success = (Py_FinalizeEx() >= 0);
 	}
-	PyRun_SimpleFile(fptr, path.c_str());
-	fclose(fptr);
-	if (Py_FinalizeEx() < 0) {
-		tech = nullptr;
-		return false;
-	}
-	PyMem_RawFree(program);
+
+	delete [] argv;
+	wordfree(&args);
 	tech = nullptr;
-	return true;
+	return success;
 }
 
 
