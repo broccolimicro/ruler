@@ -173,8 +173,8 @@ gdstk::Label *Rect::emitGDSLabel(const Tech &tech, const Layout &layout, int lay
 	};
 }
 
-void Rect::emitRect(const Tech &tech, const Layout &layout, int layer, FILE *fptr) {
-	fprintf(fptr, "rect %s %s %d %d %d %d\n", net < 0 ? "#" : layout.nets[net].c_str(), tech.paint[layer].name.c_str(), ll[0], ll[1], ur[0], ur[1]);
+void Rect::emitRect(const Layout &layout, string mtrl, FILE *fptr) {
+	fprintf(fptr, "rect %s %s %d %d %d %d\n", net < 0 ? "#" : layout.nets[net].c_str(), mtrl.c_str(), ll[0], ll[1], ur[0], ur[1]);
 }
 
 bool operator<(const Bound &b0, const Bound &b1) {
@@ -456,9 +456,9 @@ void Layer::emitGDS(const Layout &layout, gdstk::Cell *cell) const {
 	}
 }
 
-void Layer::emitRect(const Layout &layout, FILE *fptr) {
+void Layer::emitRect(const Layout &layout, string mtrl, FILE *fptr) {
 	for (auto r = geo.begin(); r != geo.end(); r++) {
-		r->emitRect(*layout.tech, layout, draw, fptr);
+		r->emitRect(layout, mtrl, fptr);
 	}
 }
 
@@ -575,7 +575,15 @@ Layout::Layout(const Tech &tech) {
 Layout::~Layout() {
 }
 
-vector<Layer>::iterator Layout::findLayer(int draw, int label, int pin) {
+vector<Layer>::iterator Layout::find(int draw, int label, int pin) {
+	auto layer = lower_bound(layers.begin(), layers.end(), draw);
+	if (layer == layers.end() or layer->draw != draw) {
+		return layers.end();
+	}
+	return layer;
+}
+
+vector<Layer>::iterator Layout::at(int draw, int label, int pin) {
 	auto layer = lower_bound(layers.begin(), layers.end(), draw);
 	if (layer == layers.end() or layer->draw != draw) {
 		layer = layers.insert(layer, Layer(*tech, draw, label, pin));
@@ -612,19 +620,19 @@ void Layout::merge(bool doSync) {
 }
 
 void Layout::push(int layer, Rect rect, bool doSync) {
-	findLayer(layer)->push(rect, doSync);
+	at(layer)->push(rect, doSync);
 }
 
 void Layout::push(int layer, vector<Rect> rects, bool doSync) {
-	findLayer(layer)->push(rects, doSync);
+	at(layer)->push(rects, doSync);
 }
 
 void Layout::push(const Material &mat, Rect rect, bool doSync) {
-	findLayer(mat.draw, mat.label, mat.pin)->push(rect, doSync);
+	at(mat.draw, mat.label, mat.pin)->push(rect, doSync);
 }
 
 void Layout::push(const Material &mat, vector<Rect> rects, bool doSync) {
-	findLayer(mat.draw, mat.label, mat.pin)->push(rects, doSync);
+	at(mat.draw, mat.label, mat.pin)->push(rects, doSync);
 }
 
 void Layout::clear() {
@@ -644,15 +652,38 @@ void Layout::emitGDS(gdstk::Library &lib) const {
 	lib.cell_array.append(cell);
 }
 
-void Layout::emitRect(FILE *fptr) {
+void Layout::emitRect(FILE *fptr, vector<pair<string, vector<int> > > layermap) {
 	if (fptr == nullptr) {
 		return;
 	}
 
+	int lo = std::numeric_limits<int>::min();
+	int hi = std::numeric_limits<int>::max();
+
 	Rect bound = bbox();
 	fprintf(fptr, "bbox %d %d %d %d\n", bound.ll[0], bound.ll[1], bound.ur[0], bound.ur[1]);
-	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->emitRect(*this, fptr);
+	vector<vector<Layer>::iterator> operands;
+	for (auto layer = layermap.begin(); layer != layermap.end(); layer++) {
+		operands.clear();
+		for (int i = 0; i < (int)layer->second.size(); i++) {
+			operands.push_back(find(layer->second[i]));
+			if (operands.back() == layers.end()) {
+				operands.pop_back();
+				break;
+			}
+		}
+		if (operands.size() < layer->second.size()) {
+			continue;
+		}
+		Layer result;
+		result.isRouting = true;
+		result.isSubstrate = false;
+		result.push(Rect(-1, vec2i(lo, lo), vec2i(hi, hi)));
+		for (int i = 0; i < (int)operands.size(); i++) {
+			result = result & *(operands[i]);
+		}
+
+		result.emitRect(*this, layer->first, fptr);
 	}
 }
 

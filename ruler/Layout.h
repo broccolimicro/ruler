@@ -37,7 +37,7 @@ struct Rect {
 
 	gdstk::Polygon *emitGDS(const Tech &tech, int layer) const;
 	gdstk::Label *emitGDSLabel(const Tech &tech, const Layout &layout, int layer) const;
-	void emitRect(const Tech &tech, const Layout &layout, int layer, FILE *fptr);
+	void emitRect(const Layout &layout, string mtrl, FILE *fptr);
 };
 
 // is this bound compared along the x or y boundary?
@@ -99,7 +99,7 @@ struct Layer {
 	void merge(bool doSync=false);
 	
 	void emitGDS(const Layout &layout, gdstk::Cell *cell) const;
-	void emitRect(const Layout &layout, FILE *fptr);
+	void emitRect(const Layout &layout, string mtrl, FILE *fptr);
 };
 
 bool operator<(const Layer &l0, const Layer &l1);
@@ -147,7 +147,9 @@ struct Layout {
 	vector<string> nets;
 	vector<Layer> layers;
 	
-	vector<Layer>::iterator findLayer(int draw, int layer=-1, int pin=-1);
+	
+	vector<Layer>::iterator find(int draw, int layer=-1, int pin=-1);
+	vector<Layer>::iterator at(int draw, int layer=-1, int pin=-1);
 	void push(int layer, Rect rect, bool doSync=false);
 	void push(int layer, vector<Rect> rects, bool doSync=false);
 	void push(const Material &mat, Rect rect, bool doSync=false);
@@ -158,7 +160,7 @@ struct Layout {
 
 	void clear();
 	void emitGDS(gdstk::Library &lib) const;
-	void emitRect(FILE *fptr);
+	void emitRect(FILE *fptr, vector<pair<string, vector<int> > > layermap);
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, vec2i spacing=vec2i(0,0), bool mergeNet=true);
