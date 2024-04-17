@@ -351,6 +351,16 @@ int Tech::findPaint(string name) const {
 	return -1;
 }
 
+int Tech::findPaint(int major, int minor) const {
+	for (int i = 0; i < (int)paint.size(); i++) {
+		if (paint[i].major and paint[i].minor == minor) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
 int Tech::findModel(string name) const {
 	for (int i = 0; i < (int)models.size(); i++) {
 		if (models[i].name == name) {

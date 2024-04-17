@@ -6,6 +6,7 @@
 
 #include "vector.h"
 #include "Tech.h"
+#include "ActConfig.h"
 
 using namespace std;
 
@@ -37,7 +38,7 @@ struct Rect {
 
 	gdstk::Polygon *emitGDS(const Tech &tech, int layer) const;
 	gdstk::Label *emitGDSLabel(const Tech &tech, const Layout &layout, int layer) const;
-	void emitRect(const Layout &layout, string mtrl, FILE *fptr);
+	void emitRect(const ActConfig &act, const Layout &layout, string mtrl, FILE *fptr);
 };
 
 // is this bound compared along the x or y boundary?
@@ -57,6 +58,7 @@ bool operator<(const Bound &b, int p);
 
 struct Layer {
 	Layer();
+	Layer(bool value);
 	Layer(const Tech &tech, int draw, int label = -1, int pin = -1);
 	~Layer();
 
@@ -99,7 +101,7 @@ struct Layer {
 	void merge(bool doSync=false);
 	
 	void emitGDS(const Layout &layout, gdstk::Cell *cell) const;
-	void emitRect(const Layout &layout, string mtrl, FILE *fptr);
+	void emitRect(const ActConfig &act, const Layout &layout, string mtrl, FILE *fptr);
 };
 
 bool operator<(const Layer &l0, const Layer &l1);
@@ -160,7 +162,9 @@ struct Layout {
 
 	void clear();
 	void emitGDS(gdstk::Library &lib) const;
-	void emitRect(FILE *fptr, vector<pair<string, vector<int> > > layermap);
+	void emitRect(const ActConfig &act, FILE *fptr);
+
+	void loadGDS(const Tech &tech, string path, string cellName);
 };
 
 bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, Layer &l1, int l1Shift, vec2i spacing=vec2i(0,0), bool mergeNet=true);

@@ -144,6 +144,7 @@ struct Tech {
 
 	string print(int layer) const;
 	int findPaint(string name) const;
+	int findPaint(int major, int minor) const;
 	int findModel(string name) const;
 	vector<int> findVias(int downLevel, int upLevel) const;
 
