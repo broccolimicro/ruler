@@ -13,11 +13,16 @@ void ActConfig::loadValue(const Tech &tech, pgen::conf_t lang, pgen::lexer_t &le
 		} else if (attr == "mangle_letter") {
 			mangleLetter = lexer.read(value.tokens[2].begin, value.tokens[2].end);
 			mangleLetter = mangleLetter.substr(1, mangleLetter.size()-2);
-		} else if ((name.rfind(".vias", 0) == 0 or name.rfind(".materials.metal", 0) == 0) and attr.rfind("_name") == string::npos and attr.rfind("_lefname") == string::npos) {
+		} else if (name.rfind(".vias", 0) == 0 and attr.rfind("_name") != string::npos) {
 			attr = attr.substr(0, attr.rfind("_"));
 			string str = lexer.read(value.tokens[2].begin, value.tokens[2].end);
 			str = str.substr(1, str.size()-2);
 			mtrlMap[attr] = str;
+		} else if (name.rfind(".materials.metal", 0) == 0 and attr[0] == 'm' and attr.find("_") == string::npos) {
+			string str = lexer.read(value.tokens[2].begin, value.tokens[2].end);
+			str = str.substr(1, str.size()-2);
+			printf("found %s -> %s\n", str.c_str(), attr.c_str());
+			mtrlMap[str] = attr;
 		}
 	} else if (kind == "string_table" and (name.rfind(".materials", 0) == 0 or name.rfind(".vias", 0) == 0) and attr.rfind("gds") != string::npos) {
 		vector<int> layers;
@@ -43,7 +48,10 @@ void ActConfig::loadValue(const Tech &tech, pgen::conf_t lang, pgen::lexer_t &le
 						}
 					}
 				}
-				mtrl = mtrlMap[mtrl];
+				auto pos = mtrlMap.find(mtrl);
+				if (pos != mtrlMap.end()) {
+					mtrl = pos->second;
+				}
 			} else {
 				mtrl = name.substr(name.rfind(".")+1);
 			}
