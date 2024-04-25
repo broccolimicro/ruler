@@ -1,4 +1,4 @@
-CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/python3.10
+CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/python3.10 -Ideps/pgen -Ldeps/pgen
 # -g -fprofile-arcs -ftest-coverage
 BSOURCES     := $(wildcard src/*.cpp)
 LSOURCES     := $(wildcard ruler/*.cpp)
@@ -9,7 +9,12 @@ BDEPS        := $(BSOURCES:.cpp=.d)
 LTARGET      = libruler.a
 BTARGET      = ruler-linux
 
-all: lib $(BTARGET)
+all: deps lib $(BTARGET)
+
+deps: pgen
+
+pgen:
+	$(MAKE) -s $(MAKE_FLAGS) -C deps/pgen
 
 lib: $(LTARGET)
 
@@ -22,7 +27,7 @@ $(LTARGET): $(LOBJECTS)
 	ar rvs $(LTARGET) $(LOBJECTS)
 
 $(BTARGET): $(BOBJECTS) $(LTARGET)
-	$(CXX) $(CXXFLAGS) $(BOBJECTS) -l:$(LTARGET) -o $(BTARGET)
+	$(CXX) $(CXXFLAGS) $(BOBJECTS) -l:$(LTARGET) -l:libpgen.a -o $(BTARGET)
 
 ruler/%.o: ruler/%.cpp
 	$(CXX) $(CXXFLAGS) -c -MMD -o $@ $<
