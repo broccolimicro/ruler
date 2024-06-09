@@ -1,7 +1,9 @@
 CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/python3.10 -Ideps/pgen -Ldeps/pgen
 # -g -fprofile-arcs -ftest-coverage
 BSOURCES     := $(wildcard src/*.cpp)
-LSOURCES     := $(wildcard ruler/*.cpp)
+PGRAM        := $(wildcard peg/*.peg)
+PSOURCES     := $(PGRAM:peg/%.peg=ruler/%.cpp)
+LSOURCES     := $(wildcard ruler/*.cpp) $(PSOURCES)
 LOBJECTS     := $(LSOURCES:.cpp=.o)
 BOBJECTS     := $(BSOURCES:.cpp=.o)
 LDEPS        := $(LSOURCES:.cpp=.d)
@@ -9,12 +11,18 @@ BDEPS        := $(BSOURCES:.cpp=.d)
 LTARGET      = libruler.a
 BTARGET      = ruler-linux
 
-all: deps lib $(BTARGET)
+all: deps grammar lib $(BTARGET)
 
 deps: pgen
 
 pgen:
 	$(MAKE) -s $(MAKE_FLAGS) -C deps/pgen
+
+grammar: $(PSOURCES)
+
+ruler/conf.cpp: peg/conf.peg
+	deps/pgen/pgen-linux $<
+	mv peg/*.cpp peg/*.h ruler
 
 lib: $(LTARGET)
 
@@ -43,6 +51,7 @@ test/gtest_main.o: $(GTEST)/src/gtest_main.cc
 -include $(TDEPS)
 
 clean:
+	$(MAKE) -s $(MAKE_FLAGS) -C deps/pgen clean
 	rm -f src/*.o ruler/*.o
 	rm -f src/*.d ruler/*.d
 	rm -f $(LTARGET) $(BTARGET)
