@@ -12,6 +12,9 @@ int flip(int idx);
 
 namespace ruler {
 
+// This structure represents a single GDS layer. There are often different
+// types of layers, but for us the most important are the draw, label, and pin
+// layer types.
 struct Paint {
 	Paint();
 	Paint(string name, int major = 0, int minor = 0);
@@ -21,13 +24,18 @@ struct Paint {
 	int major;
 	int minor;
 
+	// minimum width/height of layer
 	int minWidth;
+
+	// Can we fix min-spacing violations by filling in the space?
 	bool fill;
 
 	// negative index into Tech::rules
 	vector<int> out;
 };
 
+// This is a base class that makes it easier for us to draw layers for
+// different purposes.
 struct Material {
 	Material();
 	Material(int draw, int label, int pin);
@@ -39,38 +47,62 @@ struct Material {
 	int pin;
 };
 
+// This specifies a diffusion layer for drawing transistors
 struct Diffusion : Material {
 	Diffusion();
 	Diffusion(int draw, int label, int pin, vec2i overhang);
 	~Diffusion();
 
+	// overhang distance beyond next higher layer
+	//  _____
+	// |  _  |<-- overhang[1]
+	// | |_| |
+	// |_____|
+	//  ^
+	//  | overhang[0]
+	//
+	// If this is the top-most diffusion layer, then overhang[0] represents the
+	// overhang beyond poly and overhang[1] should be 0.
 	vec2i overhang;
 };
 
+// This structure records how to draw a transistor
 struct Model {
 	Model();
 	Model(int type, string name, int polyOverhang);
 	~Model();
 
+	// Type of transistor (nmos or pmos)
 	enum {
 		NMOS = 0,
 		PMOS = 1,
 	};
 	int type;
 	
+	// Name of the device in the PDK, this is used to parse the spice file.
 	string name;
 
-	// Start top down
+	// All of the diffusion layers starting top down
 	vector<Diffusion> paint;
+
+	// Overhang of poly beyond the diffusion
+	//     _
+	//  __| |__ <-- polyOverhang
+	// |  | |  |
+	// |__| |__|
+	//    |_|
 	int polyOverhang;
 };
 
+// This represents a routing layer for drawing wires to connect transistor
+// terminals
 struct Routing : Material {
 	Routing();
 	Routing(int draw, int label, int pin);
 	~Routing();
 };
 
+// Connect two layers with a via
 struct Via : Material {
 	Via();
 	Via(int draw, int label, int pin, int downLevel, int upLevel, int downLo = 0, int downHi = 0, int upLo = 0, int upHi = 0);
@@ -78,6 +110,7 @@ struct Via : Material {
 
 	// index into Tech::wires when >= 0
 	// index into Tech::models when < 0
+	// use flip() to access the index when negative.
 	int downLevel;
 	int upLevel;
 
@@ -86,6 +119,10 @@ struct Via : Material {
 	vec2i up;	
 };
 
+// This implements a DRC operation on the geometry. There are 3 kinds of DRC
+// operations: selectors, operations, and checks. Selectors select a specific
+// kind of geometry. Operations manipulate that geometry in various ways.
+// Checks verify that geometry against rules that must be enforced.
 struct Rule {
 	Rule();
 	Rule(int type, vector<int> operands=vector<int>(), vector<int> params=vector<int>());
@@ -98,8 +135,12 @@ struct Rule {
 		INTERACT = 3,
 		NOT_INTERACT = 4,
 		SPACING = 5,
+		// TODO implement remaining DRC checks
+		// EDGES, WITH/WITHOUT_AREA, WITH/WITHOUT_LENGTH,
+		// ENCLOSING, ONGRID, WIDTH, GROW, SHRINK
 	};
 
+	// The type of DRC rule (See enum above)
 	int type;
 
 	// positive operands refer to paint layers (index into Tech::paint)
@@ -109,7 +150,8 @@ struct Rule {
 	// These are constant valued parameters to be used in more complex operations
 	vector<int> params;
 
-	// negative index into Tech::rules
+	// negative index into Tech::rules (use flip() to get the index)
+	// This is negative to make it consistent with Rule::operands
 	vector<int> out;
 
 	bool isOperator() const;
