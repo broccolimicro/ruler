@@ -157,17 +157,39 @@ struct Rule {
 	bool isOperator() const;
 };
 
+// This is the top-level structure for the technology specification. It reads
+// in the design rules, transistor models, and GDS configuration to enable
+// automated cell layout and design rule checking.
 struct Tech {
 	Tech();
 	~Tech();
-	
+
+	// Scale of integer units in micrometers for each rectangle
+	// in the Layout.
 	double dbunit;
 
+	// index into Tech::paint to represent the cell boundary layer
 	int boundary;
+
+	// All of the GDS layers we can use for layout
 	vector<Paint> paint;
+
+	// different types of transistors (for example nmos and pmos for svt, hvt, and lvt)
 	vector<Model> models;
+
+	// Vias at different layers. Each via has a downLevel and upLevel to dictate
+	// which model or wire they connect. If the downLevel or upLevel is negative,
+	// then its a negative index into Tech::models connecting to the diffusion
+	// layers. If downLevel or upLevel are positive, then they are a positive
+	// index into Tech::wires connecting to that routing layer.
 	vector<Via> vias;
+
+	// The routing layers starting with poly at index 0, then li (local
+	// interconnect) at index 1, then the metal layers (m1, m2, m3, ...)
 	vector<Routing> wires;
+
+	// the list of all DRC rules that we need to check. See Rule for more
+	// information.
 	vector<Rule> rules;
 
 	int getOr(int l0, int l1) const;

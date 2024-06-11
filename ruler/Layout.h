@@ -19,6 +19,8 @@ struct Rect {
 	Rect(int net, vec2i ll, vec2i ur);
 	~Rect();
 
+	// The index of the variable this rectangle is connected to or -1 if floating.
+	// index into Layout::nets
 	int net;
 	// locations in db units of lower left corner and upper right corner
 	// respectively
@@ -73,14 +75,12 @@ struct Layer {
 	int pin;
 	vector<Rect> geo;
 
-	// flags to help pull apart spacing rules for
-	// cell construction
+	// flags to help pull apart spacing rules for cell construction
 	bool isRouting;
 	bool isSubstrate;
 	
 	/////////////////////////////////////////////
-	// these optimize performance in the minOffset
-	// computation
+	// these optimize performance in the minOffset computation
 	bool dirty;
 	
 	// indexed as [axis][fromTo]
@@ -132,21 +132,30 @@ struct Evaluation {
 };
 
 struct Layout {
-	//Layout();
+	// Layout(); we shouldn't be able to create a layout without a pointer to the
+	// technology node specification
 	Layout(const Tech &tech);
 	~Layout();
 
+	// used in the minOffset() functions for substrateMode and routingMode
 	enum {
 		DEFAULT = 0,
 		MERGENET = 1,
 		IGNORE = 2,
 	};
 
+	// The technology node specification with the DRC rules
 	const Tech *tech;
 
+	// The name of the cell in the cell library
 	string name;
+	// The bounding box of the cell
 	Rect box;
+
+	// The names for all of the nets
 	vector<string> nets;
+
+	// The geometry for this cell
 	vector<Layer> layers;
 	
 	
