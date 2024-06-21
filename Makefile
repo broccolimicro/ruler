@@ -1,6 +1,6 @@
-PYTHON_RELEASE = $(shell python3 -c "import sys;t='{v[0]}.{v[1]}'.format(v=list(sys.version_info[:2]));sys.stdout.write(t)")
+PYTHON_RELEASE = python$(shell python3 -c "import sys;sys.stdout.write('{}.{}'.format(sys.version_info[0],sys.version_info[1]))")
 
-CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/python$(PYTHON_RELEASE) -Ideps/pgen -Ldeps/pgen
+CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/$(PYTHON_RELEASE) -Ideps/pgen -Ldeps/pgen
 # -g -fprofile-arcs -ftest-coverage
 BSOURCES     := $(wildcard src/*.cpp)
 PGRAM        := $(wildcard peg/*.peg)
