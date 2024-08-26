@@ -6,6 +6,14 @@ this to be used for automated cell layout.
 
 ## Build and Install
 
+```
+git clone https://github.com/broccolimicro/ruler.git
+git clone https://github.com/broccolimicro/phy.git
+cd phy
+make
+cd ../ruler
+make
+```
 
 ## Examples
 

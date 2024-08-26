@@ -1,59 +1,57 @@
-PYTHON_RELEASE = python$(shell python3 -c "import sys;sys.stdout.write('{}.{}'.format(sys.version_info[0],sys.version_info[1]))")
+NAME          = ruler
+DEPEND        = phy
 
-CXXFLAGS     = -g -O2 -Wall -fmessage-length=0 -I. -L. -Ideps/gdstk/include -I/usr/include/$(PYTHON_RELEASE) -Ideps/pgen -Ldeps/pgen
-# -g -fprofile-arcs -ftest-coverage
-BSOURCES     := $(wildcard src/*.cpp)
-PGRAM        := $(wildcard peg/*.peg)
-PSOURCES     := $(PGRAM:peg/%.peg=ruler/%.cpp)
-LSOURCES     := $(wildcard ruler/*.cpp) $(PSOURCES)
-LOBJECTS     := $(LSOURCES:.cpp=.o)
-BOBJECTS     := $(BSOURCES:.cpp=.o)
-LDEPS        := $(LSOURCES:.cpp=.d)
-BDEPS        := $(BSOURCES:.cpp=.d)
-LTARGET      = libruler.a
-BTARGET      = ruler-linux
+SRCDIR        = src
+TESTDIR       = tests
+GTEST        := ../../googletest
+GTEST_I      := -I$(GTEST)/googletest/include -I.
+GTEST_L      := -L$(GTEST)/build/lib -L.
 
-all: deps grammar lib $(BTARGET)
+INCLUDE_PATHS = $(DEPEND:%=-I../%) -I.
+LIBRARY_PATHS = $(DEPEND:%=-L../%) -I.
+LIBRARIES     = $(DEPEND:%=-l%)
+CXXFLAGS	    = -std=c++14 -O2 -g -Wall -fmessage-length=0
+LDFLAGS		    =  
 
-deps: pgen
+SOURCES	     := $(shell mkdir -p $(SRCDIR); find $(SRCDIR) -name '*.cpp')
+OBJECTS	     := $(SOURCES:%.cpp=build/%.o)
+DEPS         := $(shell mkdir -p build/$(SRCDIR); find build/$(SRCDIR) -name '*.d')
+TARGET		    = $(NAME)
 
-pgen:
-	$(MAKE) -s $(MAKE_FLAGS) -C deps/pgen
+TESTS        := $(shell mkdir -p tests; find $(TESTDIR) -name '*.cpp')
+TEST_OBJECTS := $(TESTS:%.cpp=build/%.o) build/$(TESTDIR)/gtest_main.o
+TEST_DEPS    := $(shell mkdir -p build/$(TESTDIR); find build/$(TESTDIR) -name '*.d')
+TEST_TARGET   = test
 
-grammar: $(PSOURCES)
+all: setgv $(TARGET)
 
-ruler/conf.cpp: peg/conf.peg
-	deps/pgen/pgen-linux $<
-	mv peg/*.cpp peg/*.h ruler
+nogv: $(TARGET)
 
-lib: $(LTARGET)
+setgv:
+	$(eval CXXFLAGS += -DGRAPHVIZ_SUPPORTED=1)
+	$(eval LIBRARIES += -lcgraph -lgvc)
 
-test: lib $(BTARGET) $(TTARGET)
+$(TARGET): $(OBJECTS)
+	$(CXX) $(LIBRARY_PATHS) $(CXXFLAGS) $(OBJECTS) -o $(TARGET) $(LIBRARIES)
 
-check: test
-	./$(TTARGET)
+build/$(SRCDIR)/%.o: $(SRCDIR)/%.cpp 
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $(INCLUDE_PATHS) -MM -MF $(patsubst %.o,%.d,$@) -MT $@ -c $<
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(INCLUDE_PATHS) -c -o $@ $<
 
-$(LTARGET): $(LOBJECTS)
-	ar rvs $(LTARGET) $(LOBJECTS)
+$(TEST_TARGET): $(TEST_OBJECTS) $(filter-out build/$(SRCDIR)/main.o, $(OBJECTS))
+	$(CXX) $(LIBRARY_PATHS) $(CXXFLAGS) $(GTEST_L) $(INCLUDE_PATHS) $^ -pthread -lgtest -o $(TEST_TARGET) $(LIBRARIES)
 
-$(BTARGET): $(BOBJECTS) $(LTARGET)
-	$(CXX) $(CXXFLAGS) $(BOBJECTS) -l:$(LTARGET) -l:libpgen.a -o $(BTARGET)
+build/$(TESTDIR)/%.o: $(TESTDIR)/%.cpp
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) $(GTEST_I) $(INCLUDE_PATHS) -MM -MF $(patsubst %.o,%.d,$@) -MT $@ -c $<
+	$(CXX) $(CXXFLAGS) $(GTEST_I) $(INCLUDE_PATHS) $< -c -o $@
 
-ruler/%.o: ruler/%.cpp
-	$(CXX) $(CXXFLAGS) -c -MMD -o $@ $<
-
-src/%.o: src/%.cpp
-	$(CXX) $(CXXFLAGS) -c -MMD -o $@ $<
-
-test/gtest_main.o: $(GTEST)/src/gtest_main.cc
+build/$(TESTDIR)/gtest_main.o: $(GTEST)/googletest/src/gtest_main.cc
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(GTEST_I) $< -c -o $@
 
--include $(LDEPS)
--include $(BDEPS)
--include $(TDEPS)
+include $(DEPS) $(TEST_DEPS)
 
 clean:
-	$(MAKE) -s $(MAKE_FLAGS) -C deps/pgen clean
-	rm -f src/*.o ruler/*.o
-	rm -f src/*.d ruler/*.d
-	rm -f $(LTARGET) $(BTARGET)
+	rm -rf build $(TARGET) $(TEST_TARGET)
