@@ -32,6 +32,14 @@ Rect::Rect(int net, vec2i ll, vec2i ur) {
 Rect::~Rect() {
 }
 
+vec2i Rect::operator[](int corner) const {
+	return corner ? ur : ll;
+}
+
+vec2i &Rect::operator[](int corner) {
+	return corner ? ur : ll;
+}
+
 Rect Rect::shift(vec2i pos, vec2i dir) const {
 	return Rect(net, pos+ll*dir, pos+ur*dir);
 }
@@ -65,7 +73,7 @@ bool Rect::merge(Rect r) {
 	return false;
 }
 
-bool Rect::overlaps(Rect r) {
+bool Rect::overlaps(Rect r) const {
 	return ll[0] <= r.ur[0] and r.ll[0] <= ur[0] and ll[1] <= r.ur[1] and r.ll[1] <= ur[1];
 }
 
@@ -157,125 +165,6 @@ bool Rect::hasLabel() const {
 	return net >= 0;
 }
 
-bool operator<(const Bound &b0, const Bound &b1) {
-	return (b0.pos < b1.pos);
-}
-
-bool operator<(const Bound &b, int p) {
-	return (b.pos < p);
-}
-
-// TODO(edward.bingham) These are just the naive implementations of these
-// operators. The assumption is that cells are generally fairly small layouts.
-// If the DRC engine ends up getting more use, these functions need to be
-// highly optimized.
-Layer operator&(Layer &l0, Layer &l1) {
-	//l0.sync();
-	//l1.sync();
-
-	Layer result;
-	result.isRouting = l0.isRouting and l1.isRouting;
-	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
-	for (int i = 0; i < (int)l0.geo.size(); i++) {
-		for (int j = 0; j < (int)l1.geo.size(); j++) {
-			if (l0.geo[i].overlaps(l1.geo[j])) {
-				int net = -1;
-				if (l0.geo[i].net < 0 and l1.geo[j].net >= 0) {
-					net = l1.geo[j].net;
-				} else if (l0.geo[i].net >= 0 and l1.geo[j].net < 0) {
-					net = l0.geo[i].net;
-				} else if (l0.geo[i].net == l1.geo[j].net) {
-					net = l0.geo[i].net;
-				}
-
-				result.push(Rect(net, max(l0.geo[i].ll, l1.geo[j].ll), min(l0.geo[i].ur, l1.geo[j].ur)));
-			}
-		}
-	}
-	//result.merge();
-	return result;
-}
-
-Layer interact(Layer &l0, Layer &l1) {
-	//l0.sync();
-	//l1.sync();
-
-	Layer result;
-	result.draw = l0.draw;
-	result.label = l0.label;
-	result.pin = l0.pin;
-	result.isRouting = l0.isRouting;
-	result.isSubstrate = l0.isSubstrate;
-	for (int i = 0; i < (int)l0.geo.size(); i++) {
-		for (int j = 0; j < (int)l1.geo.size(); j++) {
-			if (l0.geo[i].overlaps(l1.geo[j])) {
-				result.push(l0.geo[i]);
-				break;
-			}
-		}
-	}
-	return result;
-}
-
-Layer not_interact(Layer &l0, Layer &l1) {
-	//l0.sync();
-	//l1.sync();
-
-	Layer result;
-	result.draw = l0.draw;
-	result.label = l0.label;
-	result.pin = l0.pin;
-	result.isRouting = l0.isRouting;
-	result.isSubstrate = l0.isSubstrate;
-	for (int i = 0; i < (int)l0.geo.size(); i++) {
-		bool found = false;
-		for (int j = 0; j < (int)l1.geo.size(); j++) {
-			if (l0.geo[i].overlaps(l1.geo[j])) {
-				found = true;
-				break;
-			}
-		}
-		if (not found) {
-			result.push(l0.geo[i]);
-		}
-	}
-	return result;
-}
-
-Layer operator|(Layer &l0, Layer &l1) {
-	//l0.sync();
-	//l1.sync();
-
-	Layer result;
-	result.isRouting = l0.isRouting and l1.isRouting;
-	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
-	result.push(l0.geo);
-	result.push(l1.geo);
-	result.merge(true);
-	return result;
-}
-
-Layer operator~(Layer &l) {
-	//l.sync();
-
-	int lo = std::numeric_limits<int>::min();
-	int hi = std::numeric_limits<int>::max();
-
-	Layer result(true);
-	result.isRouting = not l.isRouting;
-	result.isSubstrate = not l.isSubstrate;
-	for (int i = 0; i < (int)l.geo.size(); i++) {
-		Layer step;
-		step.push(Rect(-1, vec2i(l.geo[i].ur[0], lo), vec2i(hi, hi)));
-		step.push(Rect(-1, vec2i(lo, lo), vec2i(l.geo[i].ll[0], hi)));
-		step.push(Rect(-1, vec2i(l.geo[i].ll[0], lo), vec2i(l.geo[i].ur[0], l.geo[i].ll[1])));
-		step.push(Rect(-1, vec2i(l.geo[i].ll[0], l.geo[i].ur[1]), vec2i(l.geo[i].ur[0], hi)));
-		result = result & step;
-		result.merge();
-	}
-	return result;
-}
-
 Bound::Bound() {
 	idx = -1;
 	pos = 0;
@@ -287,6 +176,14 @@ Bound::Bound(int pos, int idx) {
 }
 
 Bound::~Bound() {
+}
+
+bool operator<(const Bound &b0, const Bound &b1) {
+	return (b0.pos < b1.pos);
+}
+
+bool operator<(const Bound &b, int p) {
+	return (b.pos < p);
 }
 
 Layer::Layer() {
@@ -343,7 +240,7 @@ void Layer::clear() {
 	dirty = false;
 }
 
-void Layer::sync() {
+void Layer::sync() const {
 	for (int axis = 0; axis < 2; axis++) {
 		for (int fromTo = 0; fromTo < 2; fromTo++) {
 			vector<Bound> &bounds = bound[axis][fromTo];
@@ -447,6 +344,117 @@ bool operator<(const Layer &l0, const Layer &l1) {
 
 bool operator<(const Layer &l0, int id) {
 	return l0.draw < id;
+}
+
+// TODO(edward.bingham) These are just the naive implementations of these
+// operators. The assumption is that cells are generally fairly small layouts.
+// If the DRC engine ends up getting more use, these functions need to be
+// highly optimized.
+Layer operator&(const Layer &l0, const Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.isRouting = l0.isRouting and l1.isRouting;
+	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				int net = -1;
+				if (l0.geo[i].net < 0 and l1.geo[j].net >= 0) {
+					net = l1.geo[j].net;
+				} else if (l0.geo[i].net >= 0 and l1.geo[j].net < 0) {
+					net = l0.geo[i].net;
+				} else if (l0.geo[i].net == l1.geo[j].net) {
+					net = l0.geo[i].net;
+				}
+
+				result.push(Rect(net, max(l0.geo[i].ll, l1.geo[j].ll), min(l0.geo[i].ur, l1.geo[j].ur)));
+			}
+		}
+	}
+	//result.merge();
+	return result;
+}
+
+Layer interact(const Layer &l0, const Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.draw = l0.draw;
+	result.label = l0.label;
+	result.pin = l0.pin;
+	result.isRouting = l0.isRouting;
+	result.isSubstrate = l0.isSubstrate;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				result.push(l0.geo[i]);
+				break;
+			}
+		}
+	}
+	return result;
+}
+
+Layer not_interact(const Layer &l0, const Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.draw = l0.draw;
+	result.label = l0.label;
+	result.pin = l0.pin;
+	result.isRouting = l0.isRouting;
+	result.isSubstrate = l0.isSubstrate;
+	for (int i = 0; i < (int)l0.geo.size(); i++) {
+		bool found = false;
+		for (int j = 0; j < (int)l1.geo.size(); j++) {
+			if (l0.geo[i].overlaps(l1.geo[j])) {
+				found = true;
+				break;
+			}
+		}
+		if (not found) {
+			result.push(l0.geo[i]);
+		}
+	}
+	return result;
+}
+
+Layer operator|(const Layer &l0, const Layer &l1) {
+	//l0.sync();
+	//l1.sync();
+
+	Layer result;
+	result.isRouting = l0.isRouting and l1.isRouting;
+	result.isSubstrate = l0.isSubstrate or l1.isSubstrate;
+	result.push(l0.geo);
+	result.push(l1.geo);
+	result.merge(true);
+	return result;
+}
+
+Layer operator~(const Layer &l) {
+	//l.sync();
+
+	int lo = std::numeric_limits<int>::min();
+	int hi = std::numeric_limits<int>::max();
+
+	Layer result(true);
+	result.isRouting = not l.isRouting;
+	result.isSubstrate = not l.isSubstrate;
+	for (int i = 0; i < (int)l.geo.size(); i++) {
+		Layer step;
+		step.push(Rect(-1, vec2i(l.geo[i].ur[0], lo), vec2i(hi, hi)));
+		step.push(Rect(-1, vec2i(lo, lo), vec2i(l.geo[i].ll[0], hi)));
+		step.push(Rect(-1, vec2i(l.geo[i].ll[0], lo), vec2i(l.geo[i].ur[0], l.geo[i].ll[1])));
+		step.push(Rect(-1, vec2i(l.geo[i].ll[0], l.geo[i].ur[1]), vec2i(l.geo[i].ur[0], hi)));
+		result = result & step;
+		result.merge();
+	}
+	return result;
 }
 
 Evaluation::Evaluation() {
@@ -852,3 +860,4 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 }
 
 }
+

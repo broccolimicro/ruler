@@ -25,13 +25,12 @@ struct Rect {
 	vec2i ll;
 	vec2i ur;
 
-	vec2i &operator[](int corner) {
-		return corner ? ur : ll;
-	}
+	vec2i operator[](int corner) const;
+	vec2i &operator[](int corner);
 
 	Rect shift(vec2i pos, vec2i dir=vec2i(1,1)) const;
 	bool merge(Rect r);
-	bool overlaps(Rect r);
+	bool overlaps(Rect r) const;
 	bool hasLabel() const;
 	Rect &bound(vec2i rll, vec2i rur);
 	Rect &bound(Rect r);
@@ -75,17 +74,17 @@ struct Layer {
 	
 	/////////////////////////////////////////////
 	// these optimize performance in the minOffset computation
-	bool dirty;
+	mutable bool dirty;
 	
 	// indexed as [axis][fromTo]
-	array<array<vector<Bound>, 2>, 2> bound;
+	mutable array<array<vector<Bound>, 2>, 2> bound;
 
 	////////////////////////////////////////////
 
 	bool isFill(const Tech &tech);
 
 	void clear();
-	void sync();
+	void sync() const;
 
 	void push(Rect rect, bool doSync=false);
 	void push(vector<Rect> rects, bool doSync=false);
@@ -168,3 +167,4 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layer &l0, int l0Shift, 
 bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftShift, Layout &right, int rightShift, int substrateMode=Layout::DEFAULT, int routingMode=Layout::DEFAULT, bool horizSpacing=true);
 
 }
+
