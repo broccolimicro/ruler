@@ -157,26 +157,6 @@ bool Rect::hasLabel() const {
 	return net >= 0;
 }
 
-gdstk::Polygon *Rect::emitGDS(const Tech &tech, int layer) const {
-	return new gdstk::Polygon(gdstk::rectangle(gdstk::Vec2{(double)ll[0], (double)ll[1]}, gdstk::Vec2{(double)ur[0], (double)ur[1]}, gdstk::make_tag(tech.paint[layer].major, tech.paint[layer].minor)));
-}
-
-gdstk::Label *Rect::emitGDSLabel(const Tech &tech, const Layout &layout, int layer) const {
-	if (net < 0) {
-		return nullptr;
-	}
-	return new gdstk::Label{
-		.tag = gdstk::make_tag(tech.paint[layer].major, tech.paint[layer].minor),
-		.text = strdup(layout.nets[net].c_str()),
-		.origin = gdstk::Vec2{(double)((ll[0] + ur[0])/2), (double)((ll[1]+ur[1])/2)},
-		.magnification = 1,
-	};
-}
-
-void Rect::emitRect(const ActConfig &act, const Layout &layout, string mtrl, FILE *fptr) {
-	fprintf(fptr, "rect %s %s %d %d %d %d\n", net < 0 ? "#" : act.demangleName(layout.nets[net]).c_str(), mtrl.c_str(), ll[0], ll[1], ur[0], ur[1]);
-}
-
 bool operator<(const Bound &b0, const Bound &b1) {
 	return (b0.pos < b1.pos);
 }
@@ -437,7 +417,7 @@ void Layer::erase(int idx, bool doSync) {
 	}
 }
 
-Rect Layer::bbox() {
+Rect Layer::bbox() const {
 	if (geo.empty()) {
 		return Rect();
 	}
@@ -460,22 +440,6 @@ void Layer::merge(bool doSync) {
 		}
 	}
 }
-
-void Layer::emitGDS(const Layout &layout, gdstk::Cell *cell) const {
-	for (auto r = geo.begin(); r != geo.end(); r++) {
-		cell->polygon_array.append(r->emitGDS(*layout.tech, draw));
-		if (r->hasLabel()) {
-			cell->label_array.append(r->emitGDSLabel(*layout.tech, layout, label));
-		}
-	}
-}
-
-void Layer::emitRect(const ActConfig &act, const Layout &layout, string mtrl, FILE *fptr) {
-	for (auto r = geo.begin(); r != geo.end(); r++) {
-		r->emitRect(act, layout, mtrl, fptr);
-	}
-}
-
 
 bool operator<(const Layer &l0, const Layer &l1) {
 	return l0.draw < l1.draw;
@@ -589,6 +553,14 @@ Layout::Layout(const Tech &tech) {
 Layout::~Layout() {
 }
 
+vector<Layer>::const_iterator Layout::find(int draw, int label, int pin) const {
+	auto layer = lower_bound(layers.begin(), layers.end(), draw);
+	if (layer == layers.end() or layer->draw != draw) {
+		return layers.end();
+	}
+	return layer;
+}
+
 vector<Layer>::iterator Layout::find(int draw, int label, int pin) {
 	auto layer = lower_bound(layers.begin(), layers.end(), draw);
 	if (layer == layers.end() or layer->draw != draw) {
@@ -614,7 +586,7 @@ vector<Layer>::iterator Layout::at(int draw, int label, int pin) {
 	return layer;
 }
 
-Rect Layout::bbox() {
+Rect Layout::bbox() const {
 	if (layers.empty()) {
 		return Rect();
 	}
@@ -654,45 +626,6 @@ void Layout::clear() {
 	box = Rect();
 	layers.clear();
 	nets.clear();
-}
-
-void Layout::emitGDS(gdstk::Library &lib) const {
-	gdstk::Cell *cell = new gdstk::Cell();
-	cell->init(name.c_str());
-	for (auto layer = layers.begin(); layer != layers.end(); layer++) {
-		layer->emitGDS(*this, cell);
-	}
-
-	lib.cell_array.append(cell);
-}
-
-void Layout::emitRect(const ActConfig &act, FILE *fptr) {
-	if (fptr == nullptr) {
-		return;
-	}
-
-	Rect bound = bbox();
-	fprintf(fptr, "bbox %d %d %d %d\n", bound.ll[0], bound.ll[1], bound.ur[0], bound.ur[1]);
-	vector<vector<Layer>::iterator> operands;
-	for (auto layer = act.mtrls.begin(); layer != act.mtrls.end(); layer++) {
-		operands.clear();
-		for (int i = 0; i < (int)layer->second.size(); i++) {
-			operands.push_back(find(layer->second[i]));
-			if (operands.back() == layers.end()) {
-				operands.pop_back();
-				break;
-			}
-		}
-		if (operands.size() < layer->second.size()) {
-			continue;
-		}
-		Layer result(true);
-		for (int i = 0; i < (int)operands.size(); i++) {
-			result = result & *(operands[i]);
-		}
-
-		result.emitRect(act, *this, layer->first, fptr);
-	}
 }
 
 struct StackElem {
@@ -916,57 +849,6 @@ bool minOffset(int *offset, const Tech &tech, int axis, Layout &left, int leftSh
 		}
 	}
 	return conflict;
-}
-
-void Layout::loadGDS(const Tech &tech, string path, string cellName) {
-	gdstk::Library lib = gdstk::read_gds(path.c_str(), tech.dbunit*1e-6, tech.dbunit*1e-6, nullptr, nullptr);
-	gdstk::Cell *gdsCell = lib.get_cell(cellName.c_str());
-	if (gdsCell == nullptr) {
-		return;
-	}
-
-	int polyCount = 0;
-
-	gdstk::Array<gdstk::Polygon*> polys;
-	gdsCell->get_polygons(true, true, -1, false, gdstk::Tag{}, polys);
-
-	for (int i = 0; i < (int)polys.count; i++) {
-		gdstk::Polygon* poly = polys[i];
-		if (poly->point_array.count != 4) {
-			polyCount++;
-			continue;
-		}
-
-		vec2i ll(std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
-		vec2i ur(std::numeric_limits<double>::min(), std::numeric_limits<double>::min());
-	
-		int major = gdstk::get_layer(poly->tag);
-		int minor = gdstk::get_type(poly->tag);
-
-		int draw = tech.findPaint(major, minor);
-		for (int j = 0; j < (int)poly->point_array.count; j++) {
-			gdstk::Vec2 point = poly->point_array[j];
-			if (point.x < ll[0]) {
-				ll[0] = point.x;
-			}
-			if (point.x > ur[0]) {
-				ur[0] = point.x;
-			}
-			if (point.y < ll[1]) {
-				ll[1] = point.y;
-			}
-			if (point.y > ur[1]) {
-				ur[1] = point.y;
-			}			
-		}
-
-		push(draw, Rect(-1, ll, ur));
-	}
-	if (polyCount > 0) {
-		printf("found %d polygons, only rectangles are supported\n", polyCount);
-	}
-
-	lib.free_all();
 }
 
 }
